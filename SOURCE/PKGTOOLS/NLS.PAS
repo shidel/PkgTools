@@ -3,7 +3,7 @@ unit NLS;
 
 interface
 
-uses Files;
+uses QFiles;
 
 
 implementation

@@ -1,0 +1,15 @@
+@echo off
+
+if not exist BIN\NUL mkdir BIN
+if exist BIN\PKGINFO.EXE deltree /y BIN\*.* >NUL
+
+if exist QCRT\PASCAL\QCRT.TPU GOTO HaveQCRT
+cd QCRT
+call mkdemos.bat
+cd ..
+:HaveQCRT
+
+call tpc /M /OQCRT\PASCAL /IQCRT\PASCAL -UQCRT\PASCAL -EBIN PKGINFO.PAS
+
+del BIN\*.TPU
+upx -9 --8086 BIN\*.EXE
