@@ -1,0 +1,16 @@
+Begin3
+Title:          Package Tools
+Version:        $VERSION$
+Entered-date:   $DATE$
+Description:    general package maintenance utilities for FreeDOS packages
+Summary:        Utilities to display, move, delete and other perform other general package maintenance packages for FreeDOS.
+Changes:
+Keywords:       dos 16 bit, asm, pascal
+Author:         Jerome Shidel <jerome _AT_ shidel.net>
+Maintained-by:  Jerome Shidel <jerome _AT_ shidel.net>
+Primary-site:   https://fd.lod.bz/repos/current/pkg-html/pkgtools.html
+Alternate-site:
+Original-site:  https://github.com/shidel/PkgTools
+Platforms:      DOS
+Copying-policy: GNU General Public License, Version 2
+End
