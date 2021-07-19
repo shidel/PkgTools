@@ -9,6 +9,8 @@ unit QDOS; { QuickCrt 9.x, DOS Unit, Requires MS-DOS 5.00 or better }
 
 interface
 
+uses QClass;
+
 const
   { Offset for DOS Date Time Functions }
     DosYear = 1980;
@@ -23,6 +25,7 @@ const
     faAnyFile    = $3F;
 
 type
+    TFileNameString = String[12];
     {Typed and untyped files}
     TFileRec = record
       Handle: Word;
@@ -39,7 +42,7 @@ type
         Attr : byte;
         Time : LongInt;
         Size : LongInt;
-        Name : String[12];
+        Name : TFileNameString;
     end;
 
     PDateTime = ^TDateTime;
@@ -161,6 +164,7 @@ procedure Exec(Command, Params : String);
 { Directory Stuff}
 procedure FindFirst(PathName : String; Attr : Word; var SearchRec : TSearchRec );
 procedure FindNext(var SearchRec : TSearchRec);
+procedure FindClose(var SearchRec : TSearchRec);
 
 { Other Functions }
 function PathOf(AFileName : String) : String;
@@ -199,6 +203,36 @@ function GetEnvCount: integer;
 function GetEnvParam(AIndex : integer): String;
 
 function DiskReady(ADrive : byte):boolean;
+
+type
+    PDirItem = ^TDirItem;
+    TDirItem = object(TObject)
+    public
+        Attr : byte;
+        Time : LongInt;
+        Size : LongInt;
+        Name : TFileNameString;
+        Data : PObject;
+        constructor Create(AOwner : PObject);
+        destructor Destroy; virtual;
+        function GetClassName : String; virtual;
+        function SizeOfObject : LongInt; virtual;
+    end;
+    PDirList = ^TDirList;
+    TDirList = object(TList)
+    public
+        IncludeParent,
+        IncludeDirs,
+        IncludeFiles,
+        IncludeVolumeID : Boolean;
+        constructor Create(AOwner : PObject);
+        function GetClassName : String; virtual;
+        function SizeOfObject : LongInt; virtual;
+        function GetDirList(PathName : String; Attr : Word) : integer; virtual;
+    end;
+
+function NewDirItem(AOwner:PObject) : PObject;
+function NewDirList(AOwner:PObject) : PObject;
 
 implementation
 
@@ -1043,6 +1077,11 @@ begin
     end;
 end;
 
+procedure FindClose(var SearchRec : TSearchRec);
+begin
+    DosError := 0;
+end;
+
 { Other Functions }
 function PathOf(AFileName : String) : String;
 begin
@@ -1465,6 +1504,99 @@ begin
     GetEnv := KeyValueOnly(LookupASCIIZ(Ptr(MemW[PrefixSeg:$002c],0), Key));
 end;
 
+{ TDirItem }
+constructor TDirItem.Create(AOwner : PObject);
+begin
+    inherited Create(AOwner);
+    Attr := 0;
+    Time := 0;
+    Size := 0;
+    Name := '';
+    Data := nil;
+end;
+
+destructor TDirItem.Destroy;
+begin
+    if Assigned(Data) then
+        Dispose(Data, Destroy);
+    inherited Destroy;
+end;
+
+function TDirItem.GetClassName : String;
+begin
+    GetClassName := 'TDirItem';
+end;
+
+function TDirItem.SizeOfObject : LongInt;
+begin
+    SizeOfObject := SizeOf(TDirItem);
+end;
+
+{ TDirList }
+
+constructor TDirList.Create(AOwner : PObject);
+begin
+    inherited Create(AOwner);
+    IncludeParent := True;
+    IncludeDirs := True;
+    IncludeFiles := True;
+    IncludeVolumeID := False;
+end;
+
+function TDirList.GetClassName : String;
+begin
+    GetClassName := 'TDirList';
+end;
+
+function TDirList.SizeOfObject : LongInt;
+begin
+    SizeOfObject := SizeOf(TDirList);
+end;
+
+function TDirList.GetDirList(PathName : String; Attr : Word) : integer;
+var
+    Search : TSearchRec;
+    Ret : integer;
+    Item : PDirItem;
+begin
+    FindFirst(PathName, Attr, Search);
+    Ret := DOSError;
+    if Ret = 0 then begin
+        repeat
+            if
+            ((IncludeVolumeID) and (Search.Attr and faVolumeID = faVolumeID)) or
+            ((IncludeFiles) and (Search.Attr and (faDirectory or faVolumeID) = 0)) or
+            (((IncludeDirs) and (Search.Attr and faDirectory = faDirectory)) and
+            ((IncludeParent) or ((Search.Name <> '.') and (Search.Name <> '..'))))
+            then begin
+                WriteLn('+', Search.Name);
+                Item := PDirItem(NewDirItem(PObject(@Self)));
+                Item^.Attr := Search.Attr;
+                Item^.Time := Search.Time;
+                Item^.Size := Search.Size;
+                Item^.Name := Search.Name;
+                AddItem(Item);
+            end;
+            FindNext(Search);
+            Ret := DOSError;
+        until Ret <> 0;
+    end;
+    if Ret = 18 then Ret := 0;
+    GetDirList := Ret;
+    FindClose(Search);
+end;
+
+function NewDirItem(AOwner:PObject) : PObject;
+begin
+    NewDirItem := New(PDirItem, Create(AOwner));
+end;
+
+function NewDirList(AOwner:PObject) : PObject;
+begin
+    NewDirList := New(PDirList, Create(AOwner));
+end;
+
+
 { initialization & finalization routines }
 
 function InitQDOS(PrefixSeg : word) : boolean; external;
@@ -1488,4 +1620,6 @@ end;
 
 begin
     UnitInit;
+    RegisterObject('TDirItem', NewDirItem);
+    RegisterObject('TDirList', NewDirList);
 end.
