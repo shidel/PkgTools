@@ -11,14 +11,33 @@ program Package_Info;
 uses QDOS, QClass, QStrings, QNLS, QPkgLSM;
 
 const
+    Version : String = '2021-07-20';
     ListDetails : String ='id;title;(version)';
 
     procedure ProgramMessages; assembler;
     asm
         db 'PROG.NAME=PkgInfo',0
         db 'PROG.TITLE=PkgInfo',0
+        db 'PROG.VERSION=Version $',0
         db 'PROG.DESC=Package Information Utility',0
         db 'MEM.USAGE=Memory Usage',0
+        db 'LSM.LSM.TITLE=Title',0
+        db 'LSM.ENTERED-DATE=Date',0
+        db 'LSM.DESCRIPTION:Description',0
+        db 'LSM.SUMMARY=Summary',0
+        db 'LSM.CNANGES=What',$27,'s New',0
+        db 'LSM.KEYWORDS=Keywords',0
+        db 'LSM.AUTHOR=Author',0
+        db 'LSM.MAINTAINED-BY=Maintainer',0
+        db 'LSM.PLATFORMS=Supported Plaforms',0
+        db 'LSM.COPYING-POLICY=Copying Policy',0
+        db 'LSM.PRIMARY-SITE=Primary Site',0
+        db 'LSM.ALTERNATE-SITE=Alternate Site',0
+        db 'LSM.ORIGINAL-SITE=Original Site',0
+        db 'LSM.WIKI-SITE=Wiki Site',0
+        db 'LSM.MIRROR-SITE=Mirror Site',0
+        db 'HELP.0=embedded help not available',0
+
         db 0
     end;
 
@@ -27,11 +46,21 @@ const
         Item : PDirItem;
     begin
         Item:=PDirItem(AObject);
-        WriteLn(RSpace(BaseNameOf(Item^.Name), 9), ':');
+        WriteLn(BaseNameOf(Item^.Name));
         DisplayFile := 0;
     end;
 
-    procedure ListPackages;
+    function DisplayPkgTitle(AObject : PObject) : integer; far;
+    var
+        Item : PDirItem;
+    begin
+        Item:=PDirItem(AObject);
+        WriteLn(RSpace(BaseNameOf(Item^.Name), 9), ': ');
+        DisplayPkgTitle := 0;
+    end;
+
+
+    procedure ListPackages(Mode:integer);
     var
         Pkgs : PPackageList;
         X, Y : LongInt;
@@ -40,7 +69,10 @@ const
 
         Pkgs := PPackageList(NewPackageList(nil));
         Pkgs^.GetInstalled;
-        Pkgs^.ForEach(DisplayFile);
+        case Mode of
+            0: Pkgs^.ForEach(DisplayFile);
+            1: Pkgs^.ForEach(DisplayPkgTitle);
+        end;
 
         Y := MemAvail;
 
@@ -48,11 +80,60 @@ const
         WriteLn('Memory Usage ', X - Y, ' / ', MemAvail - X);
     end;
 
+    procedure DisplayVersion;
+    begin
+        WriteLn(NLS('PROG.TITLE'), ', ', NLSstr('PROG.VERSION', Version));
+        WriteLn(NLS('PROG.DESC'));
+        WriteLn;
+    end;
+
+    procedure DisplayHelp;
+    var
+        I, W, H : integer;
+        S : String;
+    begin
+        DisplayVersion;
+        I := 0;
+        W := GetNLS('HELP.' + IntStr(I), S);
+        s := ReplaceStr(S, '$', GetEXEBase, True);
+        if W < 0 then Halt(1);
+        H := W;
+        while (H = W) do begin
+            WriteLn(S);
+            Inc(I);
+            W := GetNLS('HELP.' + IntStr(I), S);
+        end;
+        WriteLn;
+        Halt(0);
+    end;
+
+    procedure ParseCommandLine;
+    var
+        I : integer;
+        Opt : String;
+    begin
+         for I := 1 to ParamCount do
+            if (UCase(ParamStr(I)) = '/H')
+            or (UCase(ParamStr(I)) = '/?')
+            or (UCase(ParamStr(I)) = '/HELP') then
+                DisplayHelp
+            else if (UCase(ParamStr(I)) = '/NLS') then
+                SetLanguage(ParamStr(I+1));
+
+        I := 1;
+        while I <= ParamCount do begin
+            Opt:=UCase(ParamStr(I));
+            Inc(I);
+            if Opt = '/NLS' then begin end
+            else if Opt = '/L' then
+                ListPackages(0)
+            else if Opt = '/LIST' then
+                ListPackages(1);
+        end;
+    end;
 
 begin
     SetBuiltInLanguage(@ProgramMessages);
-    SetLanguage('es');
-    WriteLn(NLS('PROG.DESC'));
-    Halt(0);
-    ListPackages;
+    SetLanguage('');
+    ParseCommandLine;
 end.

@@ -107,6 +107,8 @@ function FilterChar ( Str : String; C : Char ) : String;
 { removes matching characters from a string }
 function ReplaceChar ( Str : String; O, N : Char ) : String;
 { Replaces characters in a string }
+function ReplaceStr ( Str : String; O, N : String; All : Boolean ) : String;
+{ Replaces characters in a string }
 procedure AddChar ( var S : String; C : Char );
 { Adds Character to end of String }
 procedure AddStr ( var S1 : String; S2 : String );
@@ -923,6 +925,20 @@ begin
 	end;
 
 	ReduceStr := Copy(UCase(S), 1, 8);
+end;
+
+function ReplaceStr ( Str : String; O, N : String;  All : boolean ) : String;
+var
+    P : integer;
+begin
+    P := Pos(O, Str);
+    while P > 0 do begin
+        Delete(Str, P, Length(O));
+        Insert(N, Str, P);
+        P :=NextPos(O, Str, P + Length(N));
+        if not All then Break;
+    end;
+    ReplaceStr := Str;
 end;
 
 end.

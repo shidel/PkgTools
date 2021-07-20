@@ -31,6 +31,10 @@ uses QClass, QDos, QStrings, QASCIIZ;
     { Returns 0 for Success, 1 for Success from BuiltIn, -1 for Failure }
 
     function NLS(AID : String) : String;
+    { Returns the NLS String and/or Empty String }
+
+    function NLSstr(AID : String; AStr : String) : String;
+    { Like NLS. But, also replaces $ with AStr }
 
 implementation
 
@@ -52,9 +56,8 @@ var
     E, C : integer;
 begin
     {$I-}
-    WriteLn(FileName);
-
     FM := FileMode;
+
     Assign(F, FileName);
     FileMode:=0;
     Reset(F, 1);
@@ -169,8 +172,14 @@ var
     T : String;
 begin
     GetNLS(AID, T); { Don't care where it came from }
-    NLS := T;
+    NLS := Trim(T);
 end;
+
+function NLSstr(AID : String; AStr : String) : String;
+begin
+    NLSstr := ReplaceStr(NLS(AID), '$', AStr, True);
+end;
+
 
 begin
     LangBuiltIn := nil;
