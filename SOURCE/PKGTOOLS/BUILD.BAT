@@ -1,7 +1,8 @@
 @echo off
 
 if not exist BIN\NUL mkdir BIN
-if exist BIN\PKGINFO.EXE deltree /y BIN\*.* >NUL
+if exist BIN\PKGINFO.EXE deltree /y BIN\*.EXE >NUL
+rem if exist BIN\QCRT.TPU deltree /y BIN\*.TPU >NUL
 
 if exist QCRT\PASCAL\QCRT.TPU GOTO HaveQCRT
 cd QCRT

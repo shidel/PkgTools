@@ -13,7 +13,8 @@ interface
 uses QClass, QDos, QStrings, QASCIIZ;
 
     const
-        Language : Str2 = '';
+        Language : Str3 = '';
+        DefaultLanguage : Str3 = 'EN';
 
     { When Language data is set, it is stored in reverse order. So, defining
       a string again overrides any previous definitions. Also, defining
@@ -23,21 +24,19 @@ uses QClass, QDos, QStrings, QASCIIZ;
 
     procedure SetBuiltInLanguage(AAddr : Pointer);
     procedure SetLanguage(ALang : String);
+    { Tries to load Specified Language from EXE directory, then NLSPATH. If
+      not found, then tries the DefaultLanguage in the same order. }
 
     function GetNLS(AID : String; var AString : String) : integer;
     { Returns 0 for Success, 1 for Success from BuiltIn, -1 for Failure }
 
     function NLS(AID : String) : String;
 
-    function HasNLS(AID : String) : boolean;
-    { Reports True if AID is set in the NLS Translation. If it is only BuiltIn
-      or not present it reports False. It is assumed all required strings
-      are already built-in  }
-
 implementation
 
 var
     LangData : Pointer;
+    LangSize : word;
     LangBuiltIn : Pointer;
 
 procedure SetBuiltInLanguage(AAddr : Pointer);
@@ -45,9 +44,73 @@ begin
     LangBuiltIn := AAddr;
 end;
 
-procedure SetLanguage(ALang : String);
+procedure LoadNLSFile(FileName:String);
+var
+    F : File;
+    TS : LongInt;
+    FM : Word;
+    E, C : integer;
 begin
-    Language := UCase(Trim(ALang));
+    {$I-}
+    WriteLn(FileName);
+
+    FM := FileMode;
+    Assign(F, FileName);
+    FileMode:=0;
+    Reset(F, 1);
+    if (IOResult <> 0) then
+        Exit;
+    TS := FileSize(F);
+    if (TS > 65533) or (TS > MaxAvail - 10240) or (IOResult <> 0) then begin
+        Close(F);
+        exit;
+    end;
+    LangSize := TS + 1;
+    GetMem(LangData, LangSize);
+    FillChar(LangData^, LangSize, 0);
+    BlockRead(F, LangData^, LangSize - 1, C);
+    if (IOResult <> 0) or ( LangSize -1 <> C ) then begin
+        FreeMem(LangData, LangSize);
+        LangData := nil;
+        LangSize := 0;
+    end;
+    Close(F);
+
+    FileMode:=FM;
+    {$I+}
+end;
+
+procedure SetLanguage(ALang : String);
+var
+    FN : String;
+begin
+    if Assigned(LangData) then
+        FreeMem(LangData, LangSize);
+    Language := Trim(ALang);
+    LangData := nil;
+    LangSize := 0;
+    if Language = '' then Language := Trim(GetEnv('LANG'));
+    if Language = '' then Language := DefaultLanguage;
+    FN := TailDelim(GetEXEPath) + GetEXEBase + '.' + Language;
+    if not FileExists(FN) then
+        FN := TailDelim(GetEnv('NLSPATH')) + GetEXEBase + '.' + Language;
+
+    if FileExists(FN) then LoadNLSFile(FN);
+
+    { Add support for Languages Attached to EXE }
+
+    if (Language <> DefaultLanguage) and ( Not Assigned(LangData) ) then
+        SetLanguage(DefaultLanguage);
+end;
+
+function FindLangData(AID : String) : Pointer;
+begin
+    FindLangData := nil;
+end;
+
+function StrToEOLN (P : Pointer) : String;
+begin
+    StrToEOLN := '';
 end;
 
 function GetNLS(AID : String; var AString : String) : integer;
@@ -57,14 +120,20 @@ var
 begin
     Ret := -1;
     AString := '';
-    if Assigned(LangBuiltIn) then
-        begin
-            P := FindAsciiZ(LangBuiltIn, AID);
-            if Assigned(P) then begin
-                AString:=PascalStr(P^);
-                Ret := 1;
-            end;
+    if Assigned(LangData) then begin
+        P := FindLangData(AID);
+        if Assigned(P) then begin
+            AString:=StrToEOLN(P);
+            Ret := 1;
         end;
+    end;
+    if (Ret = -1) and Assigned(LangBuiltIn) then begin
+        P := FindAsciiZ(LangBuiltIn, AID);
+        if Assigned(P) then begin
+            AString:=PascalStr(P^);
+            Ret := 1;
+        end;
+    end;
 
     GetNLS := Ret;
 end;
@@ -77,13 +146,8 @@ begin
     NLS := T;
 end;
 
-function HasNLS(AID : String) : boolean;
-begin
-    HasNLS := False;
-end;
-
-
 begin
     LangBuiltIn := nil;
     LangData := nil;
+    LangSize := 0;
 end.

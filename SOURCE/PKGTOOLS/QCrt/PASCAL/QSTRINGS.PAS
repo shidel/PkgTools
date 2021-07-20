@@ -16,6 +16,7 @@ interface
 type
 	PString = ^String;
 	Str2    = String[2];
+	Str3    = String[3];
 	Str4    = String[4];
 	Str5    = String[5];
 	Str8    = String[8];

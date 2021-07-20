@@ -50,6 +50,7 @@ const
 
 begin
     SetBuiltInLanguage(@ProgramMessages);
+    SetLanguage('es');
     WriteLn(NLS('PROG.TITLE'));
     Halt(0);
     ListPackages;
