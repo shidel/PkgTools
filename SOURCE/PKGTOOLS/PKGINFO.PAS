@@ -13,6 +13,13 @@ uses QDOS, QClass, QStrings, QNLS, QPkgLSM;
 const
     ListDetails : String ='id;title;(version)';
 
+    procedure ProgramMessages; assembler;
+    asm
+        db 'PROG.NAME=PkgInfo',0
+        db 'PROG.TITLE=Package Information Utility',0
+        db 'MEM.USAGE=Memory Usage',0
+        db 0
+    end;
 
     function DisplayFile(AObject : PObject) : integer; far;
     var
@@ -42,5 +49,6 @@ const
 
 
 begin
+    SetBuiltInLanguage(@ProgramMessages);
     ListPackages;
 end.
