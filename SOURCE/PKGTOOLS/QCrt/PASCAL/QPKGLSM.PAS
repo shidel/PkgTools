@@ -11,20 +11,26 @@ unit QPkgLSM;
 
 interface
 
-    uses QClass, QDOS, QFiles;
+    uses QClass, QDOS, QAsciiZ, QNLS;
 
     var
         PackageLSMPath : String;
         PackageLSTPath : String;
 
     type
-        PLSM = ^TLSM;
-        TLSM = object (TObject)
+        PPackageLSM = ^TPackageLSM;
+        TPackageLSM = object (TObject)
         public
+            DLang : Pointer;
+            DSize : word;
+            ULang : Pointer;
+            USize : word;
+            constructor Create(AOwner : PObject);
             function ReadMetaData (APackage : String) : integer; virtual;
             function WriteMetaData (APackage : String) : integer; virtual;
             function GetClassName : String; virtual;
             function SizeOfObject : LongInt; virtual;
+            procedure Clear; virtual;
         end;
 
         PPackageList = ^TPackageList;
@@ -36,30 +42,67 @@ interface
             function GetInstalled : integer; virtual;
         end;
 
-function NewLSM(AOwner:PObject) : PObject;
+function NewPackageLSM(AOwner:PObject) : PObject;
 function NewPackageList(AOwner:PObject) : PObject;
 
 implementation
 
-{ TLSM }
-function TLSM.ReadMetaData (APackage : String) : integer;
+{ TPackageLSM }
+constructor TPackageLSM.Create(AOwner : PObject);
 begin
-    ReadMetaData := 0;
+    inherited Create(AOwner);
+    DLang := nil;
+    ULang := nil;
+    DSize := 0;
+    USize := 0;
 end;
 
-function TLSM.WriteMetaData (APackage : String) : integer;
+function TPackageLSM.ReadMetaData (APackage : String) : integer;
+var
+    I  : Word;
+
+begin
+    if Assigned(DLang) then Clear;
+    ReadMetaData := 0;
+    DLang := LoadAsciiFile(TailDelim(PackageLSMPath) + APackage + '.LSM', DSize);
+    if Not Assigned(DLang) then begin
+        ReadMetaData := DSize;
+        Exit;
+    end;
+    if FileExists(TailDelim(PackageLSMPath) + APackage + '.' + UserLanguage) then begin
+        ULang := LoadAsciiFile(TailDelim(PackageLSMPath) + APackage + '.' + UserLanguage, USize);
+            WriteLn(UserLanguage, ':', USize);
+        if Not Assigned(ULang) then begin
+            ReadMetaData := USize;
+            Exit;
+        end;
+
+    end
+end;
+
+function TPackageLSM.WriteMetaData (APackage : String) : integer;
 begin
     WriteMetaData := 0;
 end;
 
-function TLSM.GetClassName : String;
+function TPackageLSM.GetClassName : String;
 begin
-    GetClassName := 'TLSM';
+    GetClassName := 'TPackageLSM';
 end;
 
-function TLSM.SizeOfObject : LongInt;
+function TPackageLSM.SizeOfObject : LongInt;
 begin
-    SizeOfObject := SizeOf(TLSM);
+    SizeOfObject := SizeOf(TPackageLSM);
+end;
+
+procedure TPackageLSM.Clear;
+begin
+    if Assigned(DLang) then FreeMem(DLang, DSize);
+    if Assigned(ULang) then FreeMem(ULang, USize);
+    DLang := nil;
+    ULang := nil;
+    DSize := 0;
+    USize := 0;
 end;
 
 { TPackageList }
@@ -86,9 +129,9 @@ begin
     GetInstalled := Count;
 end;
 
-function NewLSM(AOwner:PObject) : PObject;
+function NewPackageLSM(AOwner:PObject) : PObject;
 begin
-    NewLSM := New(PLSM, Create(AOwner));
+    NewPackageLSM := New(PPackageLSM, Create(AOwner));
 end;
 
 function NewPackageList(AOwner:PObject) : PObject;
@@ -100,6 +143,6 @@ end;
 begin
     PackageLSMPath := TailDelim(GetEnv('DOSDIR')) + 'APPINFO';
     PackageLSTPath := TailDelim(GetEnv('DOSDIR')) + 'PACKAGES';
-    RegisterObject('TLSM', NewLSM);
+    RegisterObject('TPackageLSM', NewPackageLSM);
     RegisterObject('TPackageList', NewPackageList);
 end.

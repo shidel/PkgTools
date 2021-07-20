@@ -14,6 +14,7 @@ uses QClass, QDos, QStrings, QASCIIZ;
 
     const
         Language : Str3 = '';
+        UserLanguage : Str3 = 'EN';
         DefaultLanguage : Str3 = 'EN';
 
     { When Language data is set, it is stored in reverse order. So, defining
@@ -56,7 +57,7 @@ end;
 
 procedure SetLanguage(ALang : String);
 var
-    FN : String;
+    FN, HL : String;
 begin
     if Assigned(LangData) then
         FreeMem(LangData, LangSize);
@@ -65,6 +66,7 @@ begin
     LangSize := 0;
     if Language = '' then Language := Trim(GetEnv('LANG'));
     if Language = '' then Language := DefaultLanguage;
+    UserLanguage := Language;
     FN := TailDelim(GetEXEPath) + GetEXEBase + '.' + Language;
     if not FileExists(FN) then
         FN := TailDelim(GetEnv('NLSPATH')) + GetEXEBase + '.' + Language;
@@ -73,8 +75,11 @@ begin
 
     { Add support for Languages Attached to EXE }
 
-    if (Language <> DefaultLanguage) and ( Not Assigned(LangData) ) then
+    if (Language <> DefaultLanguage) and ( Not Assigned(LangData) ) then begin
+        HL := UserLanguage;
         SetLanguage(DefaultLanguage);
+        UserLanguage := HL;
+    end;
 end;
 
 function FindLangData(AID : String) : Pointer;

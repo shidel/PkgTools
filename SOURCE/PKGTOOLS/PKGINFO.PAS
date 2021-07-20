@@ -53,9 +53,13 @@ const
     function DisplayPkgTitle(AObject : PObject) : integer; far;
     var
         Item : PDirItem;
+        LSM : PPackageLSM;
+        Err : integer;
     begin
         Item:=PDirItem(AObject);
-        WriteLn(RSpace(BaseNameOf(Item^.Name), 9), ': ');
+        Item^.Data := NewPackageLSM(Item);
+        Err := PPackageLSM(Item^.Data)^.ReadMetaData(BaseNameOf(Item^.Name));
+        WriteLn(RSpace(BaseNameOf(Item^.Name), 9), ': ', Err);
         DisplayPkgTitle := 0;
     end;
 
