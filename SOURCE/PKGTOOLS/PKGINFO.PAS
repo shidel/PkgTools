@@ -55,11 +55,21 @@ const
         Item : PDirItem;
         LSM : PPackageLSM;
         Err : integer;
+        T, V : String;
     begin
         Item:=PDirItem(AObject);
-        Item^.Data := NewPackageLSM(Item);
-        Err := PPackageLSM(Item^.Data)^.ReadMetaData(BaseNameOf(Item^.Name));
-        WriteLn(RSpace(BaseNameOf(Item^.Name), 9), ': ', Err);
+        LSM := PPackageLSM(NewPackageLSM(nil));
+        Err := LSM^.ReadMetaData(BaseNameOf(Item^.Name));
+        if Err <> 0 then
+            WriteLn(RSpace(BaseNameOf(Item^.Name), 9), '-> ', NLSStr('ERROR.NUMBER', IntStr(Err)));
+        begin
+            T := LSM^.DataStr('title');
+            V := LSM^.DataStr('version');
+            if V <> '' then V := '(' + V + ')';
+            if (T <> '') and (V <> '') then V := #32 + V;
+            WriteLn(RSpace(BaseNameOf(Item^.Name), 9), ': ', T, V);
+            Dispose(LSM, Destroy);
+        end;
         DisplayPkgTitle := 0;
     end;
 

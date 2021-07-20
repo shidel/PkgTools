@@ -31,6 +31,10 @@ interface
             function GetClassName : String; virtual;
             function SizeOfObject : LongInt; virtual;
             procedure Clear; virtual;
+            function FieldPtr(AID : String) : Pointer; virtual;
+            function DataPtr(AID : String) : Pointer; virtual;
+            function DataLen(AID : String) : word; virtual;
+            function DataStr(AID : String) : String; virtual;
         end;
 
         PPackageList = ^TPackageList;
@@ -71,7 +75,6 @@ begin
     end;
     if FileExists(TailDelim(PackageLSMPath) + APackage + '.' + UserLanguage) then begin
         ULang := LoadAsciiFile(TailDelim(PackageLSMPath) + APackage + '.' + UserLanguage, USize);
-            WriteLn(UserLanguage, ':', USize);
         if Not Assigned(ULang) then begin
             ReadMetaData := USize;
             Exit;
@@ -103,6 +106,26 @@ begin
     ULang := nil;
     DSize := 0;
     USize := 0;
+end;
+
+function TPackageLSM.FieldPtr(AID : String) : Pointer;
+begin
+    FieldPtr := nil;
+end;
+
+function TPackageLSM.DataPtr(AID : String) : Pointer;
+begin
+    DataPtr := nil;
+end;
+
+function TPackageLSM.DataLen(AID : String) : word;
+begin
+    DataLen := 0;
+end;
+
+function TPackageLSM.DataStr(AID : String) : String;
+begin
+    DataStr := '';
 end;
 
 { TPackageList }
