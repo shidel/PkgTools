@@ -50,5 +50,7 @@ const
 
 begin
     SetBuiltInLanguage(@ProgramMessages);
+    WriteLn(NLS('PROG.TITLE'));
+    Halt(0);
     ListPackages;
 end.

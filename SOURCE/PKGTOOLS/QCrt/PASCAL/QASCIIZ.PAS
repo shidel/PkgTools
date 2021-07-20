@@ -7,29 +7,58 @@ License, v. 2.0. If a copy of the MPL was not distributed with this file, You
 can obtain one at http://mozilla.org/MPL/2.0/.
 }
 
-unit QASCIIZ; { QuickCrt 9.x, ASCIIZ Unit }
+unit QAsciiZ; { QuickCrt 9.x, AsciiZ Unit }
 
 {$I QCRT.DEF}
 
 interface
 
-    { Return Key and Value from ASCIIZ Data Blob. Like Environment Table or
+type
+    PAsciiZ = ^TAsciiZ;
+    TAsciiZ = array[0..65534] of char;
+
+    { Return Key and Value from AsciiZ Data Blob. Like Environment Table or
       Application Translation Messages, Returns empty string if not found.
       Returns Key & Value when found. }
-    function LookupASCIIZ(Data : pointer; ID : String) : string;
+    function LookupAsciiZ(Data : pointer; ID : String) : string;
+    function FindAsciiZ(Data : pointer; ID : String) : PAsciiZ;
+    { Similar to LookupAsciiZ. but returns a pointer to the ASCII string, or
+      NIL if not found. }
 
-    { Returns just the value portion of an ASCIIZ lookup label Key + Value pair }
+    { Returns just the value portion of an AsciiZ lookup label Key + Value pair }
     function KeyValueOnly(S : String) : String;
 
-    { Returns up to the first 254 characters of an ASCIIZ string as a pascal
+    { Returns up to the first 254 characters of an AsciiZ string as a pascal
       string. }
     function PascalStr(const AsciiZ) : String;
 
 implementation
 
-{$L QASCIIZ.OBJ}
+{$L QAsciiZ.OBJ}
 
-function LookupASCIIZ(Data : pointer; ID : String) : string;
+function FindAsciiZ(Data : pointer; ID : String) : PAsciiZ;
+var
+    R : String;
+    I : word;
+begin
+    ID := ID + '=';
+    R[0] := ID[0];
+    repeat
+        Move(Data^, R[1], byte(R[0]));
+        if (R <> ID) then begin
+            repeat
+                Data := Ptr(Seg(Data^), Ofs(Data^) + 1);
+            until byte(Data^) = 0;
+            Data := Ptr(Seg(Data^), Ofs(Data^) + 1);
+        end;
+    until (byte(Data^) = 0) or (R = ID);
+    if R = ID then
+        FindAsciiZ := Ptr(Seg(Data^), Ofs(Data^) + Length(ID))
+    else
+        FindAsciiZ := nil;
+end;
+
+function LookupAsciiZ(Data : pointer; ID : String) : string;
 var
     R : String;
     I : word;
@@ -54,9 +83,9 @@ begin
             end;
             Data := Ptr(Seg(Data^), Ofs(Data^) + 1);
         until (byte(Data^) = 0) or (Length(R) = 255);
-        LookupASCIIZ := R;
+        LookupAsciiZ := R;
     end else
-        LookupASCIIZ := '';
+        LookupAsciiZ := '';
 end;
 
 function KeyValueOnly(S : String) : String;
