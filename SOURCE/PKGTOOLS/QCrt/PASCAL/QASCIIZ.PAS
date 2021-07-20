@@ -32,6 +32,12 @@ type
       string. }
     function PascalStr(const AsciiZ) : String;
 
+    function LoadAsciiFile(AFileName : String; var ASize : Word) : pointer;
+    { If pointer = nil, then ASize is an Error Code; When Successful,
+      the File is loaded and a Zero is appended to the end. So, ASize is equal
+      to the FileSize + 1 }
+
+
 implementation
 
 {$L QAsciiZ.OBJ}
@@ -109,6 +115,50 @@ begin
 		S[0] := Chr(I);
 		PascalStr := S;
 	end;
+end;
+
+function LoadAsciiFile(AFileName : String; var ASize : Word) : pointer;
+var
+    P : Pointer;
+    F : File;
+    TS : LongInt;
+    FM, Sz : Word;
+    C : integer;
+begin
+    {$I-}
+    LoadAsciiFile := nil;
+
+    FM := FileMode;
+
+    Assign(F, AFileName);
+    FileMode:=0;
+    Reset(F, 1);
+    ASize := IOResult;
+    if (ASize <> 0) then begin
+        Exit;
+    end;
+    TS := FileSize(F);
+    ASize := IOResult;
+    if (TS > 65533) or (TS > MaxAvail - 10240) or (ASize <> 0) then begin
+        if ASize = 0 then ASize := 8; { Not enough memory }
+        Close(F);
+        exit;
+    end;
+    Sz := TS + 1;
+    GetMem(P, Sz);
+    FillChar(P^, Sz, 0);
+    BlockRead(F, P^, Sz - 1, C);
+    ASize := IOResult;
+    if (ASize <> 0) or ( Sz -1 <> C ) then
+        FreeMem(P, Sz)
+    else begin
+        ASize := Sz;
+        LoadAsciiFile := P;
+    end;
+    Close(F);
+
+    FileMode:=FM;
+    {$I+}
 end;
 
 end.

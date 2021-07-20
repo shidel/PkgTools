@@ -49,38 +49,9 @@ begin
 end;
 
 procedure LoadNLSFile(FileName:String);
-var
-    F : File;
-    TS : LongInt;
-    FM : Word;
-    E, C : integer;
 begin
-    {$I-}
-    FM := FileMode;
-
-    Assign(F, FileName);
-    FileMode:=0;
-    Reset(F, 1);
-    if (IOResult <> 0) then
-        Exit;
-    TS := FileSize(F);
-    if (TS > 65533) or (TS > MaxAvail - 10240) or (IOResult <> 0) then begin
-        Close(F);
-        exit;
-    end;
-    LangSize := TS + 1;
-    GetMem(LangData, LangSize);
-    FillChar(LangData^, LangSize, 0);
-    BlockRead(F, LangData^, LangSize - 1, C);
-    if (IOResult <> 0) or ( LangSize -1 <> C ) then begin
-        FreeMem(LangData, LangSize);
-        LangData := nil;
-        LangSize := 0;
-    end;
-    Close(F);
-
-    FileMode:=FM;
-    {$I+}
+    LangData := LoadAsciiFile(FileName, LangSize);
+    if not Assigned(LangData) then LangSize := 0;
 end;
 
 procedure SetLanguage(ALang : String);
