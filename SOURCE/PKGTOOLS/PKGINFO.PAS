@@ -16,7 +16,8 @@ const
     procedure ProgramMessages; assembler;
     asm
         db 'PROG.NAME=PkgInfo',0
-        db 'PROG.TITLE=Package Information Utility',0
+        db 'PROG.TITLE=PkgInfo',0
+        db 'PROG.DESC=Package Information Utility',0
         db 'MEM.USAGE=Memory Usage',0
         db 0
     end;
@@ -51,7 +52,7 @@ const
 begin
     SetBuiltInLanguage(@ProgramMessages);
     SetLanguage('es');
-    WriteLn(NLS('PROG.TITLE'));
+    WriteLn(NLS('PROG.DESC'));
     Halt(0);
     ListPackages;
 end.

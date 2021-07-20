@@ -104,13 +104,39 @@ begin
 end;
 
 function FindLangData(AID : String) : Pointer;
+var
+    I : integer;
+    T : String;
 begin
     FindLangData := nil;
+    if Not Assigned (LangData) then Exit;
+    AID := AID + '=';
+    T[0] := AID[0];
+    I := 0;
+    repeat
+        move(PAsciiZ(LangData)^[I], T[1], Length(AID));
+        if (AID = T) then begin
+            FindLangData := Ptr(Seg(LangData^), Ofs(LangData^) + I + Length(AID));
+            Exit;
+        end;
+        Inc(I);
+    until I >= LangSize;
 end;
 
 function StrToEOLN (P : Pointer) : String;
+var
+    I : Integer;
+    S : String;
 begin
-    StrToEOLN := '';
+    S := '';
+    if Assigned(P) then begin
+        I := 0;
+        while (I<254) and (Pos(PAsciiZ(P)^[I], #13#10#0) < 1) do begin
+            S := S + PAsciiZ(P)^[I];
+            Inc(I);
+        end;
+    end;
+    StrToEOLN := S;
 end;
 
 function GetNLS(AID : String; var AString : String) : integer;
