@@ -129,6 +129,8 @@ function  StrPtr(const S : String) : PString;
 function  PtrStr(const P : PString) : String;
 procedure FreeStr(var P : PString);
 
+function MatchWildCard ( AWild, AStr : String ) : boolean;
+
 implementation
 
 {$L QSTRINGS.OBJ}
@@ -939,6 +941,70 @@ begin
         if not All then Break;
     end;
     ReplaceStr := Str;
+end;
+
+function SubMatchWC(AWild, AStr :String) : boolean;
+var
+    I : Integer;
+begin
+    SubMatchWC:= False;
+    if Length(AWild) <> Length(AStr) then exit;
+    for I := 1 to Length(AWild) do
+        if (AWild[I] <> AStr[I]) and (AWild[I] <> '?') then exit;
+    SubMatchWC := True;
+end;
+
+function QPos(ASub, AStr : String) : integer;
+var
+    I : integer;
+begin
+    QPos := 0;
+    for I := 1 to Length(AStr) - Length(ASub) + 1 do
+        if SubMatchWC(ASub, Copy(AStr, I, Length(ASub))) then begin
+            QPos := I;
+            Break;
+        end;
+end;
+
+function MatchWildCard ( AWild, AStr : String ) : boolean;
+{ far from perfect, but good enough for now. :-) }
+var
+    PW, PS : integer;
+    X : integer;
+begin
+    X := 0;
+    MatchWildCard := True;
+    if AWild = AStr then Exit;
+    if AWild = '' then begin
+        MatchWildCard := False;
+        Exit;
+    end;
+    repeat
+        Inc(X);
+        if AWild[1] = '*' then begin
+            { WriteLn('[A-',AWild, '/',AStr,']'); }
+            While (AWild<> '') and (AWild[1] = '*') do Delete(AWild, 1,1);
+            if AWild = '' then Exit;
+            PW := Pos('*', AWild);
+            if PW < 1 then PW := Length(AWild)+ 1;
+            { WriteLn(PW, ';', Copy(AWild, 1, PW -1), ';', AStr); }
+            PS := QPos(Copy(AWild, 1, PW -1), AStr);
+            { WriteLn(PS); }
+            if PS < 1 then Break;
+            Delete(AStr, 1, PS - 1);
+        end;
+        { WriteLn('[B-',AWild, '/',AStr,']'); }
+        if SubMatchWC(AWild, AStr) then Exit;
+        PW := Pos('*', AWild) - 1;
+        { WriteLn(PW); }
+        if PW < 1 then PW := Length(AWild) + 1;
+        if not SubMatchWC(Copy(AWild,1, PW), Copy(AStr, 1, PW)) then Break;
+        Delete(AWild, 1, PW);
+        Delete(AStr, 1, PW);
+        { WriteLn('[C-',AWild, '/',AStr,']'); }
+    until (AWild = '') or (AStr = '') or (X = 1000);
+    { WriteLn('[D-',AWild, '/',AStr,']'); }
+    MatchWildCard := ((AWild = '*') or (AWild = '')) and (AStr = '');
 end;
 
 end.

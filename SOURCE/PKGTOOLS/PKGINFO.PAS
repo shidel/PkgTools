@@ -12,7 +12,8 @@ uses QDOS, QClass, QStrings, QNLS, QPkgLSM;
 
 const
     Version : String = '2021-07-20';
-    ListDetails : String ='id;title;(version)';
+    ListDetails : String ='id;title;version;';
+    WildCard : String = '*';
 
     procedure ProgramMessages; assembler;
     asm
@@ -45,9 +46,11 @@ const
     var
         Item : PDirItem;
     begin
-        Item:=PDirItem(AObject);
-        WriteLn(BaseNameOf(Item^.Name));
         DisplayFile := 0;
+        Item:=PDirItem(AObject);
+        if (WildCard <> '*') and
+            (MatchWildCard(WildCard, BaseNameOf(Item^.Name)) = false) then exit;
+        WriteLn(BaseNameOf(Item^.Name));
     end;
 
     function DisplayPkgTitle(AObject : PObject) : integer; far;
@@ -57,7 +60,10 @@ const
         Err : integer;
         T, V : String;
     begin
+        DisplayPkgTitle := 0;
         Item:=PDirItem(AObject);
+        if (WildCard <> '*') and
+            (MatchWildCard(WildCard, BaseNameOf(Item^.Name)) = false) then exit;
         LSM := PPackageLSM(NewPackageLSM(nil));
         Err := LSM^.ReadMetaData(BaseNameOf(Item^.Name));
         if Err <> 0 then
@@ -70,7 +76,6 @@ const
             WriteLn(RSpace(BaseNameOf(Item^.Name), 9), ': ', T, V);
             Dispose(LSM, Destroy);
         end;
-        DisplayPkgTitle := 0;
     end;
 
     function DisplayPkgMetadata(AObject : PObject) : integer; far;
@@ -80,7 +85,10 @@ const
         Err : integer;
         T, V : String;
     begin
+        DisplayPkgMetadata := 0;
         Item:=PDirItem(AObject);
+        if (WildCard <> '*') and
+            (MatchWildCard(WildCard, BaseNameOf(Item^.Name)) = false) then exit;
         LSM := PPackageLSM(NewPackageLSM(nil));
         Err := LSM^.ReadMetaData(BaseNameOf(Item^.Name));
         if Err <> 0 then
@@ -93,7 +101,6 @@ const
             WriteLn(RSpace(BaseNameOf(Item^.Name), 9), ': ', T, V);
             Dispose(LSM, Destroy);
         end;
-        DisplayPkgMetadata := 0;
     end;
 
 
@@ -149,6 +156,7 @@ const
     var
         I : integer;
         Opt, H : String;
+        ListMode : integer;
     begin
          for I := 1 to ParamCount do
             if (UCase(ParamStr(I)) = '/H')
@@ -158,22 +166,24 @@ const
             else if (UCase(ParamStr(I)) = '/NLS') then
                 SetLanguage(ParamStr(I+1));
 
+        ListMode := 1;
         I := 1;
         while I <= ParamCount do begin
             Opt:=UCase(ParamStr(I));
             Inc(I);
-            if Opt = '/NLS' then begin end
+            if Opt = '/NLS' then begin Inc(I) end
+            else if Opt = '/N' then
+                ListMode := 0
             else if Opt = '/L' then
-                ListPackages(0)
-            else if Opt = '/LIST' then
-                ListPackages(1)
+                ListMode := 1
+            else if Opt = '/D' then
+                ListMode := 2
             else begin
-                H := PackageWildCard;
-                PackageWildCard := Opt;
-                ListPackages(2);
-                PackageWildCard := H;
+                WildCard := Opt;
             end;
         end;
+        if (ListMode >= 0) then
+            ListPackages(ListMode);
     end;
 
 begin
