@@ -61,8 +61,8 @@ const
         LSM := PPackageLSM(NewPackageLSM(nil));
         Err := LSM^.ReadMetaData(BaseNameOf(Item^.Name));
         if Err <> 0 then
-            WriteLn(RSpace(BaseNameOf(Item^.Name), 9), '-> ', NLSStr('ERROR.NUMBER', IntStr(Err)));
-        begin
+            WriteLn(RSpace(BaseNameOf(Item^.Name), 9), '-> ', NLSStr('ERROR.NUMBER', IntStr(Err)))
+        else begin
             T := LSM^.DataStr('title');
             V := LSM^.DataStr('version');
             if V <> '' then V := '(' + V + ')';

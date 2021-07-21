@@ -1,0 +1,39 @@
+; Below whenever a $ is used, it represents a variable or string that will be
+; inserted replacing the $ in the translation.
+
+LANG=EN
+LANGUAGE=english
+TRANSLATOR=
+
+PROG.NAME=PkgInfo
+PROG.VERSION=Version $
+PROG.TITLE=PkgInfo
+PROG.DESC=Package Information Utility
+MEM.USAGE=Memory Usage
+
+LSM.TITLE=Title
+LSM.ENTERED-DATE=Date
+LSM.DESCRIPTION:Description
+LSM.SUMMARY=Summary
+LSM.CNANGES=What's New
+LSM.KEYWORDS=Keywords
+LSM.AUTHOR=Author
+LSM.MAINTAINED-BY=Maintainer
+LSM.PLATFORMS=Supported Plaforms
+LSM.COPYING-POLICY=Copying Policy
+LSM.PRIMARY-SITE=Primary Site
+LSM.ALTERNATE-SITE=Alternate Site
+LSM.ORIGINAL-SITE=Original Site
+LSM.WIKI-SITE=Wiki Site
+LSM.MIRROR-SITE=Mirror Site
+
+; Help numbers can vary. However, they must be consecutive. Add more or reduce
+; the total number of help lines as needed.
+
+HELP.0=Usage $: [options]
+HELP.1=
+HELP.2=     /h          Display help
+HELP.3=
+HELP.4=     /nls lang   Use lang instead of system setting
+
+ERROR.NUMBER=Error #$
