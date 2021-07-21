@@ -1573,7 +1573,7 @@ begin
             (((IncludeDirs) and (Search.Attr and faDirectory = faDirectory)) and
             ((IncludeParent) or ((Search.Name <> '.') and (Search.Name <> '..'))))
             then begin
-                WriteLn('+', Search.Name);
+                { WriteLn('+', Search.Name); }
                 Item := PDirItem(NewDirItem(PObject(@Self)));
                 Item^.Attr := Search.Attr;
                 Item^.Time := Search.Time;

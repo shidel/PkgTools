@@ -84,7 +84,7 @@ end;
 
 function FindLangData(AID : String) : Pointer;
 var
-    I : integer;
+    I : word;
     T : String;
 begin
     FindLangData := nil;

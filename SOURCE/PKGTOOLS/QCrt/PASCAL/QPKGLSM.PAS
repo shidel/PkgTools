@@ -11,7 +11,7 @@ unit QPkgLSM;
 
 interface
 
-    uses QClass, QDOS, QAsciiZ, QNLS;
+    uses QClass, QDOS, QAsciiZ, QNLS, QStrings;
 
     var
         PackageLSMPath : String;
@@ -31,9 +31,10 @@ interface
             function GetClassName : String; virtual;
             function SizeOfObject : LongInt; virtual;
             procedure Clear; virtual;
+            function SearchField(PLang:Pointer; PSize : word; AID : String) : Pointer;  virtual;
             function FieldPtr(AID : String) : Pointer; virtual;
             function DataPtr(AID : String) : Pointer; virtual;
-            function DataLen(AID : String) : word; virtual;
+            function DataLen(P : Pointer) : word; virtual;
             function DataStr(AID : String) : String; virtual;
         end;
 
@@ -108,24 +109,82 @@ begin
     USize := 0;
 end;
 
-function TPackageLSM.FieldPtr(AID : String) : Pointer;
+function TPackageLSM.SearchField(PLang:Pointer; PSize : word; AID : String) : Pointer;
+var
+    R : String;
+    I : word;
 begin
-    FieldPtr := nil;
+    SearchField := nil;
+    AID := UCase(AID) + ':';
+    if Not Assigned(PLang) or (PSize - 2 < Length(AID)) then Exit;
+    I := 0;
+    R[0] := AID[0];
+    repeat
+        Move(PAsciiZ(PLang)^[I], R[1], Length(AID));
+        R := UCase(R);
+        if R = AID then begin
+            SearchField := Ptr(Seg(PLang^), Ofs(PLang^) + I );
+            Exit;
+        end;
+        Inc(I);
+    until I >= PSize - 2 - Length(AID);
+end;
+
+function TPackageLSM.FieldPtr(AID : String) : Pointer;
+var
+    P : Pointer;
+    I : word;
+begin
+    P := SearchField(ULang, USize, AID);
+    if not Assigned(P) then P := SearchField(DLang, DSize, AID);
+    FieldPtr := P;
 end;
 
 function TPackageLSM.DataPtr(AID : String) : Pointer;
+var
+    P : Pointer;
+    I : word;
 begin
     DataPtr := nil;
+    P := FieldPtr(AID);
+    if assigned(P) then begin
+        I := Length(AID);
+        repeat
+            Inc(I);
+        until (PAsciiZ(P)^[I] <> #9) and (PAsciiZ(P)^[I] <> #32);
+        DataPtr := Ptr(Seg(P^), Ofs(P^) + I );
+    end;
 end;
 
-function TPackageLSM.DataLen(AID : String) : word;
+function TPackageLSM.DataLen(P : Pointer) : word;
+var
+    I : word;
 begin
     DataLen := 0;
+    if assigned(P) then begin
+        I := 0;
+        while (Pos(PAsciiZ(P)^[I], #$0A#$0D#$00) < 1) do Inc(I);
+        DataLen := I;
+    end;
 end;
 
 function TPackageLSM.DataStr(AID : String) : String;
+var
+    P : Pointer;
+    S : String;
+    L : word;
 begin
     DataStr := '';
+    P := DataPtr(AID);
+    if Assigned(P) then begin
+        L := DataLen(P);
+        DataStr:=IntStr(L);
+        if L = 0 then Exit;
+        if L > 254 then L := 254;
+        S[0] := Chr(L);
+        Move(P^, S[1], L);
+        DataStr := S;
+    end;
 end;
 
 { TPackageList }
