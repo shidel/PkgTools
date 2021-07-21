@@ -2,8 +2,8 @@ Begin3
 Title:          Package Tools
 Version:        $VERSION$
 Entered-date:   $DATE$
-Description:    general package maintenance utilities for FreeDOS packages
-Summary:        Utilities to display, move, delete and other perform other general package maintenance packages for FreeDOS.
+Description:    general maintenance utilities for FreeDOS packages
+Summary:        Utilities to display information about installed packages for FreeDOS. Eventually, utilities to relocate, delete and perform other general package maintenance on packages will be added.
 Changes:
 Keywords:       dos 16 bit, asm, pascal
 Author:         Jerome Shidel <jerome _AT_ shidel.net>

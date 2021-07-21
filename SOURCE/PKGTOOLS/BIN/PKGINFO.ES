@@ -8,9 +8,10 @@ MEM.USAGE=Uso de memoria
 
 LSM.TITLE=T¡tulo
 LSM.ENTERED-DATE=Fecha
-LSM.DESCRIPTION:Descripci¢n
+LSM.DESCRIPTION=Descripci¢n
+LSM.VERSION=Versi¢n
 LSM.SUMMARY=Sumario
-LSM.CNANGES=Cambios
+LSM.CHANGES=Cambios
 LSM.KEYWORDS=Palabras clave
 LSM.AUTHOR=Autor
 LSM.MAINTAINED-BY=Mantenedor

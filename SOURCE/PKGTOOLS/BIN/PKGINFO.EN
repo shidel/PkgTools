@@ -1,5 +1,6 @@
 ; Below whenever a $ is used, it represents a variable or string that will be
-; inserted replacing the $ in the translation.
+; inserted replacing the $ in the translation. These are not variables like
+; $NLS, the $ will be replaced and NLS will remain.
 
 LANG=EN
 LANGUAGE=english
@@ -13,9 +14,10 @@ MEM.USAGE=Memory Usage
 
 LSM.TITLE=Title
 LSM.ENTERED-DATE=Date
-LSM.DESCRIPTION:Description
+LSM.DESCRIPTION=Description
+LSM.VERSION=Version
 LSM.SUMMARY=Summary
-LSM.CNANGES=What's New
+LSM.CHANGES=What's New
 LSM.KEYWORDS=Keywords
 LSM.AUTHOR=Author
 LSM.MAINTAINED-BY=Maintainer
@@ -27,13 +29,29 @@ LSM.ORIGINAL-SITE=Original Site
 LSM.WIKI-SITE=Wiki Site
 LSM.MIRROR-SITE=Mirror Site
 
-; Help numbers can vary. However, they must be consecutive. Add more or reduce
-; the total number of help lines as needed.
+; HELP numbers can change and vary. However, they must be consecutive. Add more
+; lines, reduce the total count, insert between lines. Doesn't matter. Just do
+; not skip or repeat line numbers.
 
-HELP.0=Usage $: [options]
+HELP.0=Usage $: [options] [package]
 HELP.1=
-HELP.2=     /h          Display help
-HELP.3=
-HELP.4=     /nls lang   Use lang instead of system setting
+HELP.2=     [options]   Options are not case specific. If no options are provided
+HELP.3=                 than /L is assumed by default.
+HELP.4=
+HELP.5=     [package]   Complex wildcard to specify package(s). Supports things
+HELP.6=                 like fd*pkg, *zip*, ?d*, etc.
+HELP.7=
+HELP.8=Basic modes of operation:
+HELP.9=
+HELP.10=     $H          Display help and exit
+HELP.11=
+HELP.12=     $N          Names of installed packages
+HELP.13=     $L          List installed packages (names, titles, version)
+HELP.14=     $D          Details of installed packages
+HELP.15=
+HELP.16=Mode modifier and miscellaneous options:
+HELP.17=
+HELP.18=     $NLS lang   Use lang translations instead of system setting
+HELP.19=     //          Force use of / for the switch character
 
 ERROR.NUMBER=Error #$

@@ -6,13 +6,16 @@ This project and related files are subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this file, You
 can obtain one at http://mozilla.org/MPL/2.0/.
 }
+
+{$M 32678,102400,655360}
 program Package_Info;
 
-uses QDOS, QClass, QStrings, QNLS, QPkgLSM;
+uses QDOS, QClass, QStrings, QNLS, QPkgLSM, QAsciiZ;
 
 const
     Version : String = '2021-07-20';
-    ListDetails : String ='id;title;version;';
+    ListDetails : String ='*title;*version;*copying-policy;description';
+    WidthDetails : word = 0;
     WildCard : String = '*';
 
     procedure ProgramMessages; assembler;
@@ -22,11 +25,12 @@ const
         db 'PROG.VERSION=Version $',0
         db 'PROG.DESC=Package Information Utility',0
         db 'MEM.USAGE=Memory Usage',0
-        db 'LSM.LSM.TITLE=Title',0
+        db 'LSM.TITLE=Title',0
         db 'LSM.ENTERED-DATE=Date',0
-        db 'LSM.DESCRIPTION:Description',0
+        db 'LSM.DESCRIPTION=Description',0
+        db 'LSM.VERSION=Version',0
         db 'LSM.SUMMARY=Summary',0
-        db 'LSM.CNANGES=What',$27,'s New',0
+        db 'LSM.CHANGES=What',$27,'s New',0
         db 'LSM.KEYWORDS=Keywords',0
         db 'LSM.AUTHOR=Author',0
         db 'LSM.MAINTAINED-BY=Maintainer',0
@@ -82,11 +86,17 @@ const
     var
         Item : PDirItem;
         LSM : PPackageLSM;
-        Err : integer;
-        T, V : String;
+        Err, I : integer;
+        P : PAsciiZ;
+        L, M, D : String;
+        R : boolean;
     begin
         DisplayPkgMetadata := 0;
         Item:=PDirItem(AObject);
+        { Filenames in DOS are Uppercase (Excluding LFN, which isn't supported
+          at this time). Also, OPT is Uppercased in the command line parser
+          before it sets the WILDCARD. So, All Checking is using Uppercase
+          letters.}
         if (WildCard <> '*') and
             (MatchWildCard(WildCard, BaseNameOf(Item^.Name)) = false) then exit;
         LSM := PPackageLSM(NewPackageLSM(nil));
@@ -94,11 +104,26 @@ const
         if Err <> 0 then
             WriteLn(RSpace(BaseNameOf(Item^.Name), 9), '-> ', NLSStr('ERROR.NUMBER', IntStr(Err)))
         else begin
-            T := LSM^.DataStr('title');
-            V := LSM^.DataStr('version');
-            if V <> '' then V := '(' + V + ')';
-            if (T <> '') and (V <> '') then V := #32 + V;
-            WriteLn(RSpace(BaseNameOf(Item^.Name), 9), ': ', T, V);
+            WriteLn(BaseNameOf(Item^.Name), ':');
+            L := UCase(ListDetails);
+            while L <> '' do begin
+                I := Pos(';', L);
+                if I < 1 then I := Length(L) + 1;
+                M := Copy(L, 1, I - 1);
+                Delete(L,1, I);
+                if (M <> '') and (M[1] = '*') then begin
+                    R := True;
+                    Delete(M, 1,1);
+                end else
+                    R := False;
+                if M = '' then Continue;
+                P := LSM^.DataPtr(M);
+                if R or Assigned(P) then begin
+                    Write(#9, RSpace(NLS('LSM.' + M) + ':', WidthDetails),
+                        M, ', ', Assigned(P));
+                    WriteLn;
+                end;
+            end;
             Dispose(LSM, Destroy);
         end;
     end;
@@ -140,13 +165,14 @@ const
         DisplayVersion;
         I := 0;
         W := GetNLS('HELP.' + IntStr(I), S);
-        s := ReplaceStr(S, '$', GetEXEBase, True);
+        S := ReplaceStr(S, '$', GetEXEBase, True);
         if W < 0 then Halt(1);
         H := W;
         while (H = W) do begin
             WriteLn(S);
             Inc(I);
             W := GetNLS('HELP.' + IntStr(I), S);
+            S := ReplaceStr(S, '$', SwitchChar, True);
         end;
         WriteLn;
         Halt(0);
@@ -159,11 +185,13 @@ const
         ListMode : integer;
     begin
          for I := 1 to ParamCount do
-            if (UCase(ParamStr(I)) = '/H')
-            or (UCase(ParamStr(I)) = '/?')
-            or (UCase(ParamStr(I)) = '/HELP') then
+            if ParamStr(I) = '//' then SwitchChar := '/';
+         for I := 1 to ParamCount do
+            if (UCase(ParamStr(I)) = SwitchChar + 'H')
+            or (UCase(ParamStr(I)) = SwitchChar + '?')
+            or (UCase(ParamStr(I)) = SwitchChar + 'HELP') then
                 DisplayHelp
-            else if (UCase(ParamStr(I)) = '/NLS') then
+            else if (UCase(ParamStr(I)) = SwitchChar + 'NLS') then
                 SetLanguage(ParamStr(I+1));
 
         ListMode := 1;
@@ -171,15 +199,15 @@ const
         while I <= ParamCount do begin
             Opt:=UCase(ParamStr(I));
             Inc(I);
-            if Opt = '/NLS' then begin Inc(I) end
-            else if Opt = '/N' then
+            if Opt = SwitchChar + 'NLS' then begin Inc(I) end
+            else if Opt = SwitchChar + 'N' then
                 ListMode := 0
-            else if Opt = '/L' then
+            else if Opt = SwitchChar + 'L' then
                 ListMode := 1
-            else if Opt = '/D' then
+            else if Opt = SwitchChar + 'D' then
                 ListMode := 2
             else begin
-                WildCard := Opt;
+                WildCard := Opt; { Already Uppercase :-) }
             end;
         end;
         if (ListMode >= 0) then
