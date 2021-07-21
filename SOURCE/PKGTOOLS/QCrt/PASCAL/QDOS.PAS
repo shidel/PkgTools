@@ -97,6 +97,8 @@ function DosVersion : word;
 
 function StdInReady : boolean;
 
+function CtrlCPressed : boolean; { Tested through BIOS not DOS }
+
 { Character I/O }
 {
     These functions should be avoided. DOS StdIn has issues in some virtual
@@ -244,6 +246,21 @@ uses
     QASCIIZ, QStrings;
 
 {$L QDOS.OBJ}
+
+function CtrlCPressed : boolean; assembler;
+asm
+        MOV     AH, $01
+        INT     $16
+        JZ      @@1
+        CMP     AL, $03
+        JNE     @@1
+        MOV     AL, TRUE
+        JMP     @@2
+    @@1:
+        MOV     AL, FALSE
+    @@2:
+end;
+
 
 function DiskReady(ADrive : byte):boolean; assembler;
 { Technically, disk change is a BIOS function present starting 1/10/1986,

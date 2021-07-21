@@ -2,8 +2,12 @@ LANG=ES
 LANGUAGE=espa¤ol
 TRANSLATOR=Mostly Google Translate
 
+PROG.NAME=PkgInfo
+PROG.VERSION=Version $
+PROG.TITLE=PkgInfo
 PROG.DESC=Utilidad de informaci¢n del paquete
-PROG.VERSION=versi¢n $
+PROG.ABORT=program aborted
+
 MEM.USAGE=Uso de memoria
 
 LSM.TITLE=T¡tulo
@@ -15,7 +19,7 @@ LSM.CHANGES=Cambios
 LSM.KEYWORDS=Palabras clave
 LSM.AUTHOR=Autor
 LSM.MAINTAINED-BY=Mantenedor
-LSM.PLATFORMS=Plataformas compatibles
+LSM.PLATFORMS=Compatibles
 LSM.COPYING-POLICY=Licencia
 LSM.PRIMARY-SITE=Primary website
 LSM.ALTERNATE-SITE=Sitio web alternativo

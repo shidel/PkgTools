@@ -10,6 +10,8 @@ PROG.NAME=PkgInfo
 PROG.VERSION=Version $
 PROG.TITLE=PkgInfo
 PROG.DESC=Package Information Utility
+PROG.ABORT=program aborted
+
 MEM.USAGE=Memory Usage
 
 LSM.TITLE=Title
@@ -21,7 +23,7 @@ LSM.CHANGES=What's New
 LSM.KEYWORDS=Keywords
 LSM.AUTHOR=Author
 LSM.MAINTAINED-BY=Maintainer
-LSM.PLATFORMS=Supported Plaforms
+LSM.PLATFORMS=Plaforms
 LSM.COPYING-POLICY=Copying Policy
 LSM.PRIMARY-SITE=Primary Site
 LSM.ALTERNATE-SITE=Alternate Site
