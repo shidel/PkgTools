@@ -12,6 +12,7 @@ Primary-site:   https://fd.lod.bz/repos/current/pkg-html/pkgtools.html
 Alternate-site:
 Original-site:  https://github.com/shidel/PkgTools
 Wiki-site:
+Mirror-site:
 Platforms:      DOS
 Copying-policy: GNU General Public License, Version 2
 End
