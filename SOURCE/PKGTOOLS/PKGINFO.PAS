@@ -23,12 +23,13 @@ uses QDOS, QClass, QStrings, QNLS, QPkgLSM, QAsciiZ;
 const
     Version : String = '2021-07-20';
     ListDetails : String = '*title;*version;*copying;description';
-    ListMore : String = '*title;*version;*copying;entered;' +
-        'description;summary;changes;keywords;author;maintained;platforms;' +
-        'primary,alternate;wiki;mirror';
+    ListMore : String = '*title;*version;' +
+        'description;summary;changes;keywords;author;maintained;' +
+        'primary,alternate;wiki;mirror;*copying;entered;';
     DetailLevel : integer = 0;
     MetaFieldWidth : word = 0;
     PkgWildCard : String = '*';
+    PkgShown : integer = 0;
 
     procedure ProgramMessages; assembler;
     asm
@@ -68,6 +69,7 @@ const
         Item:=PDirItem(AObject);
         if (PkgWildCard <> '*') and
             (MatchWildCard(PkgWildCard, BaseNameOf(Item^.Name)) = false) then exit;
+        Inc(PkgShown);
         WriteLn(BaseNameOf(Item^.Name));
     end;
 
@@ -83,6 +85,7 @@ const
         Item:=PDirItem(AObject);
         if (PkgWildCard <> '*') and
             (MatchWildCard(PkgWildCard, BaseNameOf(Item^.Name)) = false) then exit;
+        Inc(PkgShown);
         LSM := PPackageLSM(NewPackageLSM(nil));
         Err := LSM^.ReadMetaData(BaseNameOf(Item^.Name));
         if Err <> 0 then
@@ -135,6 +138,8 @@ const
           letters.}
         if (PkgWildCard <> '*') and
             (MatchWildCard(PkgWildCard, BaseNameOf(Item^.Name)) = false) then exit;
+        Inc(PkgShown);
+        if (PkgShown > 1) then WriteLn;
         LSM := PPackageLSM(NewPackageLSM(nil));
         Err := LSM^.ReadMetaData(BaseNameOf(Item^.Name));
         if Err <> 0 then
