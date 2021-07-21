@@ -13,6 +13,9 @@ interface
 
     uses QClass, QDOS, QAsciiZ, QNLS, QStrings;
 
+    const
+        PackageWildCard : String = '*';
+
     var
         PackageLSMPath : String;
         PackageLSTPath : String;
@@ -207,7 +210,7 @@ end;
 
 function TPackageList.Getinstalled : integer;
 begin
-    GetDirList(TailDelim(PackageLSMPath) + '*.LSM', faAnyFile);
+    GetDirList(TailDelim(PackageLSMPath) + PackageWildCard + '.LSM', faAnyFile);
     GetInstalled := Count;
 end;
 

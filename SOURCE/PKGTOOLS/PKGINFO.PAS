@@ -73,6 +73,29 @@ const
         DisplayPkgTitle := 0;
     end;
 
+    function DisplayPkgMetadata(AObject : PObject) : integer; far;
+    var
+        Item : PDirItem;
+        LSM : PPackageLSM;
+        Err : integer;
+        T, V : String;
+    begin
+        Item:=PDirItem(AObject);
+        LSM := PPackageLSM(NewPackageLSM(nil));
+        Err := LSM^.ReadMetaData(BaseNameOf(Item^.Name));
+        if Err <> 0 then
+            WriteLn(RSpace(BaseNameOf(Item^.Name), 9), '-> ', NLSStr('ERROR.NUMBER', IntStr(Err)))
+        else begin
+            T := LSM^.DataStr('title');
+            V := LSM^.DataStr('version');
+            if V <> '' then V := '(' + V + ')';
+            if (T <> '') and (V <> '') then V := #32 + V;
+            WriteLn(RSpace(BaseNameOf(Item^.Name), 9), ': ', T, V);
+            Dispose(LSM, Destroy);
+        end;
+        DisplayPkgMetadata := 0;
+    end;
+
 
     procedure ListPackages(Mode:integer);
     var
@@ -86,12 +109,13 @@ const
         case Mode of
             0: Pkgs^.ForEach(DisplayFile);
             1: Pkgs^.ForEach(DisplayPkgTitle);
+            2: Pkgs^.ForEach(DisplayPkgMetaData);
         end;
 
         Y := MemAvail;
 
         Dispose(Pkgs, Destroy);
-        WriteLn('Memory Usage ', X - Y, ' / ', MemAvail - X);
+        WriteLn(NLS('MEMORY.USAGE'), X - Y, ' / ', MemAvail - X);
     end;
 
     procedure DisplayVersion;
@@ -124,7 +148,7 @@ const
     procedure ParseCommandLine;
     var
         I : integer;
-        Opt : String;
+        Opt, H : String;
     begin
          for I := 1 to ParamCount do
             if (UCase(ParamStr(I)) = '/H')
@@ -142,7 +166,13 @@ const
             else if Opt = '/L' then
                 ListPackages(0)
             else if Opt = '/LIST' then
-                ListPackages(1);
+                ListPackages(1)
+            else begin
+                H := PackageWildCard;
+                PackageWildCard := Opt;
+                ListPackages(2);
+                PackageWildCard := H;
+            end;
         end;
     end;
 
