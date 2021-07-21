@@ -13,6 +13,7 @@ PROG.DESC=Package Information Utility
 PROG.ABORT=program aborted
 
 MEM.USAGE=Memory Usage
+ERROR.NUMBER=Error #$
 
 LSM.TITLE=Title
 LSM.ENTERED-DATE=Date
@@ -50,10 +51,15 @@ HELP.11=
 HELP.12=     $N          Names of installed packages
 HELP.13=     $L          List installed packages (names, titles, version)
 HELP.14=     $D          Details of installed packages
-HELP.15=
-HELP.16=Mode modifier and miscellaneous options:
-HELP.17=
-HELP.18=     $NLS lang   Use lang translations instead of system setting
-HELP.19=     //          Force use of / for the switch character
+HELP.15=     $M          Like $D, but provides more details
+HELP.16=
+HELP.17=Mode modifier options:
+HELP.18=
+HELP.19=
+HELP.20=
+HELP.21=
+HELP.22=Miscellaneous options:
+HELP.23=
+HELP.24=     $NLS lang   Use lang translations instead of system setting
+HELP.25=     //          Force use of / for the switch character
 
-ERROR.NUMBER=Error #$

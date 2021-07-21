@@ -26,9 +26,9 @@ const
     ListMore : String = '*title;*version;*copying;entered;' +
         'description;summary;changes;keywords;author;maintained;platforms;' +
         'primary,alternate;wiki;mirror';
-    WidthDetails : word = 0;
     DetailLevel : integer = 0;
-    WildCard : String = '*';
+    MetaFieldWidth : word = 0;
+    PkgWildCard : String = '*';
 
     procedure ProgramMessages; assembler;
     asm
@@ -66,8 +66,8 @@ const
         TestBreak;
         DisplayFile := 0;
         Item:=PDirItem(AObject);
-        if (WildCard <> '*') and
-            (MatchWildCard(WildCard, BaseNameOf(Item^.Name)) = false) then exit;
+        if (PkgWildCard <> '*') and
+            (MatchWildCard(PkgWildCard, BaseNameOf(Item^.Name)) = false) then exit;
         WriteLn(BaseNameOf(Item^.Name));
     end;
 
@@ -81,8 +81,8 @@ const
         TestBreak;
         DisplayPkgTitle := 0;
         Item:=PDirItem(AObject);
-        if (WildCard <> '*') and
-            (MatchWildCard(WildCard, BaseNameOf(Item^.Name)) = false) then exit;
+        if (PkgWildCard <> '*') and
+            (MatchWildCard(PkgWildCard, BaseNameOf(Item^.Name)) = false) then exit;
         LSM := PPackageLSM(NewPackageLSM(nil));
         Err := LSM^.ReadMetaData(BaseNameOf(Item^.Name));
         if Err <> 0 then
@@ -131,10 +131,10 @@ const
         Item:=PDirItem(AObject);
         { Filenames in DOS are Uppercase (Excluding LFN, which isn't supported
           at this time). Also, OPT is Uppercased in the command line parser
-          before it sets the WILDCARD. So, All Checking is using Uppercase
+          before it sets the PkgWildCard. So, All Checking is using Uppercase
           letters.}
-        if (WildCard <> '*') and
-            (MatchWildCard(WildCard, BaseNameOf(Item^.Name)) = false) then exit;
+        if (PkgWildCard <> '*') and
+            (MatchWildCard(PkgWildCard, BaseNameOf(Item^.Name)) = false) then exit;
         LSM := PPackageLSM(NewPackageLSM(nil));
         Err := LSM^.ReadMetaData(BaseNameOf(Item^.Name));
         if Err <> 0 then
@@ -159,7 +159,7 @@ const
                 M:=ExpandMetaID(M);
                 P := LSM^.DataPtr(M);
                 if R or Assigned(P) then begin
-                    Write(#9, RSpace(NLS('LSM.' + M) + ':', WidthDetails),
+                    Write(#9, RSpace(NLS('LSM.' + M) + ':', MetaFieldWidth),
                         M, ', ', Assigned(P));
                     WriteLn;
                 end;
@@ -168,6 +168,29 @@ const
         end;
     end;
 
+    procedure CalcMetaFieldWidth;
+    var
+        L, M : String;
+        I : integer;
+    begin
+        MetaFieldWidth := 0;
+        if DetailLevel = 1 then
+            L := UCase(ListMore)
+        else
+            L := UCase(ListDetails);
+        while L <> '' do begin
+            I := Pos(';', L);
+            if I < 1 then I := Length(L) + 1;
+            M := Copy(L, 1, I - 1);
+            Delete(L,1, I);
+            if (M <> '') and (M[1] = '*') then
+                Delete(M, 1,1);
+            M:=NLS('LSM.' + ExpandMetaID(M));
+            if Length(M) > MetaFieldWidth then
+                MetaFieldWidth := Length(M);
+        end;
+        Inc(MetaFieldWidth, 2);
+    end;
 
     procedure ListPackages(Mode:integer);
     var
@@ -181,13 +204,16 @@ const
         case Mode of
             0: Pkgs^.ForEach(DisplayFile);
             1: Pkgs^.ForEach(DisplayPkgTitle);
-            2: Pkgs^.ForEach(DisplayPkgMetaData);
+            2: begin
+                CalcMetaFieldWidth;
+                Pkgs^.ForEach(DisplayPkgMetaData);
+            end;
         end;
 
         Y := MemAvail;
 
         Dispose(Pkgs, Destroy);
-        WriteLn(NLS('MEMORY.USAGE'), X - Y, ' / ', MemAvail - X);
+        { WriteLn(NLS('MEMORY.USAGE'), X - Y, ' / ', MemAvail - X); }
     end;
 
     procedure DisplayVersion;
@@ -246,10 +272,11 @@ const
                 ListMode := 1
             else if Opt = SwitchChar + 'D' then
                 ListMode := 2
-            else if Opt = SwitchChar + 'M' then
-                DetailLevel := 1
-            else begin
-                WildCard := Opt; { Already Uppercase :-) }
+            else if Opt = SwitchChar + 'M' then begin
+                DetailLevel := 1;
+                ListMode := 2;
+            end else begin
+                PkgWildCard := Opt; { Already Uppercase :-) }
             end;
         end;
         if (ListMode >= 0) then
