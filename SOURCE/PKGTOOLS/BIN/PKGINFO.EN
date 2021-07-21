@@ -31,6 +31,7 @@ LSM.ALTERNATE-SITE=Alternate Site
 LSM.ORIGINAL-SITE=Original Site
 LSM.WIKI-SITE=Wiki Site
 LSM.MIRROR-SITE=Mirror Site
+LSM.NA=(n/a)
 
 ; HELP numbers can change and vary. However, they must be consecutive. Add more
 ; lines, reduce the total count, insert between lines. Doesn't matter. Just do

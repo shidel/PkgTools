@@ -25,11 +25,13 @@ const
     ListDetails : String = '*title;*version;*copying;description';
     ListMore : String = '*title;*version;' +
         'description;summary;changes;keywords;author;maintained;' +
-        'primary,alternate;wiki;mirror;*copying;entered;';
+        'primary;alternate;wiki;mirror;*copying;entered;';
     DetailLevel : integer = 0;
     MetaFieldWidth : word = 0;
     PkgWildCard : String = '*';
     PkgShown : integer = 0;
+    Tab : String = '    ';
+    TabStop : word = 4;
 
     procedure ProgramMessages; assembler;
     asm
@@ -37,7 +39,7 @@ const
         db 'PROG.TITLE=PkgInfo',0
         db 'PROG.VERSION=Version $',0
         db 'PROG.DESC=Package Information Utility',0
-        db 'PROG.ABORT=program aborted',0
+        db 'PROG.ABORT=^C - aborted',0
         db 'MEM.USAGE=Memory Usage',0
         db 'LSM.TITLE=Title',0
         db 'LSM.ENTERED-DATE=Date',0
@@ -120,6 +122,37 @@ const
         ExpandMetaID := AStr;
     end;
 
+    procedure WrapWriteLn(P : PAsciiZ);
+    var
+        X, I, L : word;
+    begin
+        I := 0;
+        X := TabStop + MetaFieldWidth;
+        while (Pos(P^[I], #13#10#0) = 0) do begin
+            L := X + 1;
+            while (L < 79) and (Pos(P^[I + L - X], #32#13#10#0) = 0) do Inc(L);
+            if (L = 79) and (P^[I] = #32) then X := 79;
+            if X = 79 then begin
+                WriteLn;
+                X := TabStop + MetaFieldWidth;
+                { if X > 16 then begin
+                    X := 16;
+                    Write(Tab, Tab);
+                end else begin }
+                    Write(Tab, Space(MetaFieldWidth));
+                {end; }
+                if P^[I] = #32 then begin
+                    Inc(I);
+                    continue;
+                end;
+            end;
+            Write(P^[I]);
+            Inc(I);
+            Inc(X);
+        end;
+        WriteLn;
+    end;
+
     function DisplayPkgMetadata(AObject : PObject) : integer; far;
     var
         Item : PDirItem;
@@ -127,7 +160,7 @@ const
         Err, I : integer;
         P : PAsciiZ;
         L, M, D : String;
-        R : boolean;
+        R, H : boolean;
     begin
         TestBreak;
         DisplayPkgMetadata := 0;
@@ -161,12 +194,24 @@ const
                 end else
                     R := False;
                 if M = '' then Continue;
-                M:=ExpandMetaID(M);
+                M := ExpandMetaID(M);
                 P := LSM^.DataPtr(M);
+                if Assigned(P) then begin
+                    H := false;
+                    for I := 0 to LSM^.DataLen(P) - 1 do
+                        if (P^[I] <> '-') then begin
+                            H := True;
+                            Break;
+                        end;
+                    if  not H then P := nil;
+                end;
+
                 if R or Assigned(P) then begin
-                    Write(#9, RSpace(NLS('LSM.' + M) + ':', MetaFieldWidth),
-                        M, ', ', Assigned(P));
-                    WriteLn;
+                    Write(Tab, RSpace(NLS('LSM.' + M) + ':', MetaFieldWidth));
+                    if not Assigned(P) then
+                        WriteLn(NLS('LSM.NA'))
+                    else
+                        WrapWriteLn(P);
                 end;
             end;
             Dispose(LSM, Destroy);
