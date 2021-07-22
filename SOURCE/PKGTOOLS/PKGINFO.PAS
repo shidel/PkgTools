@@ -8,6 +8,8 @@ can obtain one at http://mozilla.org/MPL/2.0/.
 }
 
 {$M 32678,102400,655360}
+{$S+}
+{$DEFINE FAKELOST}
 program Package_Info;
 
 uses QDOS, QClass, QStrings, QNLS, QPkgLSM, QAsciiZ, QFiles;
@@ -84,8 +86,8 @@ const
         db 'ALLFILES=File list',0
         db 'BINARIES=File list',0
         db 'MISSING.SOME=Missing files',0
-        db 'MISSING.NONE=No missing files'
-        db 'MISSING.ALL=All files are missing'
+        db 'MISSING.NONE=No missing files',0
+        db 'MISSING.ALL=All files are missing',0
         db 'HELP.0=no built-in help available',0
 
         db 0
@@ -106,14 +108,36 @@ const
 
     end;
 
-    function SizeStr(I : Longint; Human : boolean) : String;
+    function NLSPlural(AID :String; D :String; Plural : boolean) : String;
+    var
+        S : String;
     begin
-        SizeStr := IntStr(I);
+        if Plural then S := NLSstr(AID + 'S', D) else S := '';
+        if (Not Plural) or (S = '') then S := NLSstr(AID, D);
+        if S = '' then S := NLSstr(AID + 'S', D);
+        NLSPlural := S;
+    end;
+
+    function SizeStr(I : Longint; Human : boolean) : String;
+    var
+        S : String;
+    begin
+        S := '';
+        if Human then
+            S := NLSPlural('BYTE', IntStr(I), I <> 1);
+        if S = '' then
+            S := IntStr(I);
+        SizeStr := S;
     end;
 
     function NumberStr(I : Longint) : String;
     begin
         NumberStr := IntStr(I);
+    end;
+
+    function FilesStr(I : Longint) : String;
+    begin
+        FilesStr := NLSPlural('FILE', IntStr(I), I <> 1);
     end;
 
     function ListPackageFiles(APkg : String) : integer;
@@ -163,7 +187,7 @@ const
                 Continue;
             end;
 
-            Size := SizeOfFile(S + 'x');
+            Size := SizeOfFile(S {$IFDEF FAKELOST}+ 'x' {$ENDIF});
             if DOSError <> 0 then begin
                 if ReportMissing then WriteLn(Indent, ErrorMsg(DOSError, S));
                 Size := 0;
@@ -196,14 +220,22 @@ const
         end;
         if (PkgMissing = 0) then begin
             if ReportMissing then
-                WriteLn(Indent, NLS('MISSING.NONE'));
+                Write(Indent, NLS('MISSING.NONE'));
         end else if (PkgFiles = 0) then
-            WriteLn(Indent, NLS('MISSING.ALL'))
+            Write(Indent, NLS('MISSING.ALL'))
         else
-            WriteLn(Indent, ReplaceStr(
-                ReplaceStr(NLS('MISSING.SOME'), '$0', NumberStr(PkgMissing), True),
+            Write(Indent, ReplaceStr(
+                ReplaceStr(NLSPlural('MISSING.SOME', '$', PkgFiles <> 1), '$0', NumberStr(PkgMissing), True),
                 '$1', NumberStr(I), True));
 
+        if ReportUsage then begin
+            if (PkgMissing = 0) and (not ReportMissing) then begin
+                WriteLn(Indent, FilesStr(PkgFiles), ', ', SizeStr(PkgBytes, True))
+            end else if PkgMissing = 0 then
+                WriteLn(', ', FilesStr(PkgFiles), ', ', SizeStr(PkgBytes, True))
+            else
+                WriteLn(', ', SizeStr(PkgBytes, True));
+        end else if (PkgMissing <> 0) then WriteLn;
 
         FL.Close;
         FL.Destroy;

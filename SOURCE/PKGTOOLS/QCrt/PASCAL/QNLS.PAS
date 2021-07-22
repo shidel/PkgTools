@@ -98,6 +98,8 @@ begin
             FindLangData := Ptr(Seg(LangData^), Ofs(LangData^) + I + Length(AID));
             Exit;
         end;
+        while (Pos(PAsciiZ(LangData)^[I], #13#10#0) < 1) do inc(I);
+        while (Pos(PAsciiZ(LangData)^[I + 1], #13#10#0) = 1) do inc(I);
         Inc(I);
     until I >= LangSize;
 end;

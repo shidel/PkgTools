@@ -24,6 +24,7 @@ ERROR.2=file not found
 
 PKG.INSTALLED=package '$' is installed
 PKG.NOTFOUND=Unable to find a package matching '$'
+
 LST.NOTFOUND=File list for package not found
 
 LSM.TITLE=Title
@@ -44,7 +45,8 @@ LSM.WIKI-SITE=Wiki Site
 LSM.MIRROR-SITE=Mirror Site
 
 MISSING.NONE=No missing files
-MISSING.SOME=Missing $0 of $1 files
+MISSING.SOME=Missing $0 of $1 file
+MISSING.SOMES=Missing $0 of $1 files
 MISSING.ALL=All files are missing
 
 BINARIES=Executable files
@@ -52,11 +54,12 @@ ALLFILES=File list
 NA=(n/a)
 
 USAGE=Disk Usage
-
-BYTE=byte
-BYTES=bytes
-KBYTE=kb
-MBYTE=mb
+FILE=$ file
+FILES=$ files
+BYTE=$ byte
+BYTES=$ bytes
+KBYTE=$KB
+MBYTE=$MB
 MISSING=missing
 
 ; HELP numbers can change and vary. However, they must be consecutive. Add more

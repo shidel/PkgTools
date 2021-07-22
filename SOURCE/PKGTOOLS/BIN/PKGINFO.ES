@@ -28,6 +28,8 @@ LSM.WIKI-SITE=Sitio web de ayuda
 LSM.MIRROR-SITE=Sitio web espejo
 LSM.NA=(n/a)
 
+FILES=$ files
+
 HELP.0=Uso $: [opciones]
 HELP.1=
 HELP.2=     /h          Mostrar ayuda
