@@ -106,12 +106,22 @@ const
 
     end;
 
+    function SizeStr(I : Longint; Human : boolean) : String;
+    begin
+        SizeStr := IntStr(I);
+    end;
+
+    function NumberStr(I : Longint) : String;
+    begin
+        NumberStr := IntStr(I);
+    end;
+
     function ListPackageFiles(APkg : String) : integer;
     var
         FL : TDiskFile;
         Size : longint;
         S : String;
-        I : integer;
+        I, MS : integer;
         LenOK : boolean;
         Indent : String;
         IndentX : integer;
@@ -137,6 +147,7 @@ const
         FL.Reset;
         FL.Seek(0);
         I := 0;
+        MS := Length(SizeStr(MaxLongInt, False));
         while (FL.Result = 0) and (not FL.EOF) do begin
             TestBreak;
             LenOK := FL.ReadLn(S, Sizeof(S) - 1);
@@ -179,7 +190,7 @@ const
                     continue;
             end;
             Write(Indent);
-            if ReportUsage then Write(Size, ', ');
+            if ReportUsage then Write(RSpace(SizeStr(Size, false), MS));
             WriteLn(S);
 {            if S = '' then Break; }
         end;
@@ -190,8 +201,8 @@ const
             WriteLn(Indent, NLS('MISSING.ALL'))
         else
             WriteLn(Indent, ReplaceStr(
-                ReplaceStr(NLS('MISSING.SOME'), '$0', IntStr(PkgMissing), True),
-                '$1', IntStr(I), True));
+                ReplaceStr(NLS('MISSING.SOME'), '$0', NumberStr(PkgMissing), True),
+                '$1', NumberStr(I), True));
 
 
         FL.Close;
