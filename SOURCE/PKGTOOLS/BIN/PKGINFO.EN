@@ -44,7 +44,7 @@ LSM.WIKI-SITE=Wiki Site
 LSM.MIRROR-SITE=Mirror Site
 
 MISSING.NONE=No missing files
-MISSING.SOME=Missing files
+MISSING.SOME=Missing $0 of $1 files
 MISSING.ALL=All files are missing
 
 BINARIES=Executable files

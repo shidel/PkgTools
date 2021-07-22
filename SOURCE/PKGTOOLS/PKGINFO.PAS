@@ -29,6 +29,7 @@ const
     ListMore : String = '*title;*version;entered;' +
         'description;summary;changes;keywords;author;maintained;' +
         'primary;alternate;wiki;mirror;*copying';
+    Execuatable : String = ';EXE;COM;BAT;';
     PrefixLSM : Str4 = 'LSM.';
 
     DetailLevel : integer = 0;
@@ -44,6 +45,7 @@ const
     PkgBytes : longint = 0;
     ReportMissing : boolean = false;
     ReportUsage : boolean = false;
+    ReportEXEs : boolean = false;
     ListFiles : integer = 0; { 0 = don't; 1 = invisible for Missing & Usage;
                                2 = EXE, COM & BAT; 3 = Everything }
 
@@ -145,7 +147,7 @@ const
 
             Size := SizeOfFile(S + 'x');
             if DOSError <> 0 then begin
-                WriteLn(Tab, ErrorMsg(DOSError, S));
+                if ReportMissing then WriteLn(Indent, ErrorMsg(DOSError, S));
                 Size := 0;
                 Inc(TotalMissing);
                 Inc(PkgMissing);
@@ -155,9 +157,36 @@ const
             TotalBytes := TotalBytes + Size;
             Inc(PkgFiles);
             Inc(TotalFiles);
-            WriteLn(Tab,Size, ', ', S);
+            if (ListFiles < 1) then
+                continue
+            else if (ListFiles = 1) and (not ReportEXEs) then
+                continue
+            else if (ListFiles > 2)  and (ReportEXEs) then begin
+                if Pos(';' + FileExtension(S) + ';', Execuatable) > 0 then
+                    S := '*' + S
+                else
+                    S := ' ' + S;
+            end else
+            if (ListFiles = 2) and (ReportEXEs) then begin
+                if Pos(';' + FileExtension(S) + ';', Execuatable) = 0 then
+                    continue;
+            end;
+            Write(Indent);
+            if ReportUsage then Write(Size, ', ');
+            WriteLn(S);
 {            if S = '' then Break; }
         end;
+        if (PkgMissing = 0) then begin
+            if ReportMissing then
+                WriteLn(Indent, NLS('MISSING.NONE'));
+        end else if (PkgFiles = 0) then
+            WriteLn(Indent, NLS('MISSING.ALL'))
+        else
+            WriteLn(Indent, ReplaceStr(
+                ReplaceStr(NLS('MISSING.SOME'), '$0', IntStr(PkgMissing), True),
+                '$1', IntStr(I), True));
+
+
         FL.Close;
         FL.Destroy;
     end;
@@ -441,6 +470,7 @@ const
                 ReportUsage := True;
             end else if Opt = SwitchChar + 'E' then begin
                 if ListFiles < 2 then ListFiles := 2;
+                ReportEXEs := True;
             end else if Opt = SwitchChar + 'A' then begin
                 if ListFiles < 3 then ListFiles := 3;
             end else if Opt[1] = SwitchChar then begin
