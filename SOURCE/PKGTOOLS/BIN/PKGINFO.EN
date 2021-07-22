@@ -15,8 +15,12 @@ PROG.DESC=Package Information Utility
 PROG.ABORT=program aborted
 
 MEM.USAGE=Memory Usage
-ERROR.NUMBER=Error #$
 BAD.SWITCH=See help: invalid switch '$'
+LINE.TOOLONG=Error: Line #$ is too long
+
+ERROR=Error ($)
+ERROR.NUMBER=#$
+ERROR.2=file not found
 
 PKG.INSTALLED=package '$' is installed
 PKG.NOTFOUND=Unable to find a package matching '$'

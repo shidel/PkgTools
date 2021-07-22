@@ -210,6 +210,8 @@ function GetEnvParam(AIndex : integer): String;
 
 function DiskReady(ADrive : byte):boolean;
 
+function SizeOfFile(AFileName : String) : longint;
+
 type
     PDirItem = ^TDirItem;
     TDirItem = object(TObject)
@@ -1524,6 +1526,21 @@ function GetEnv(const Key : String) : String;
 begin
     GetEnv := KeyValueOnly(LookupASCIIZ(Ptr(MemW[PrefixSeg:$002c],0), Key));
 end;
+
+function SizeOfFile(AFileName : String) : longint;
+var
+    F : File;
+    Size : longint;
+    M : word;
+begin
+    M := FileMode;
+    FileMode := 0;
+    Assign(F, AFileName);
+    GetFSize(F, Size);
+    SizeOfFile := Size;
+    FileMode := M;
+end;
+
 
 { TDirItem }
 constructor TDirItem.Create(AOwner : PObject);

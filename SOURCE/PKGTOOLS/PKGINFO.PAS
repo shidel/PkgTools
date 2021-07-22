@@ -22,18 +22,26 @@ uses QDOS, QClass, QStrings, QNLS, QPkgLSM, QAsciiZ, QFiles;
 
 const
     Version : String = '2021-07-20';
+    Tab : String = '    ';
+    TabStop : word = 4;
+
     ListDetails : String = '*title;*version;*copying;description';
-    ListMore : String = '*title;*version;' +
+    ListMore : String = '*title;*version;entered;' +
         'description;summary;changes;keywords;author;maintained;' +
-        'primary;alternate;wiki;mirror;*copying;entered;';
+        'primary;alternate;wiki;mirror;*copying';
     PrefixLSM : Str4 = 'LSM.';
+
     DetailLevel : integer = 0;
     MetaFieldWidth : word = 0;
     PkgWildCard : String = '*';
     PkgShown : integer = 0;
     PkgTesting : boolean = false;
-    Tab : String = '    ';
-    TabStop : word = 4;
+    TotalFiles : longint = 0;
+    TotalMissing : longint = 0;
+    TotalBytes : longint = 0;
+    PkgMissing : longint = 0;
+    PkgFiles : longint = 0;
+    PkgBytes : longint = 0;
     ReportMissing : boolean = false;
     ReportUsage : boolean = false;
     ListFiles : integer = 0; { 0 = don't; 1 = invisible for Missing & Usage;
@@ -77,6 +85,81 @@ const
         db 'HELP.0=no built-in help available',0
 
         db 0
+    end;
+
+    function ErrorMsg(Err : integer; Data : String) : string;
+    var
+        R : String;
+    begin
+        R := NLSstr('ERROR.' + IntStr(Err),IntStr(Err));
+        if R = '' then begin
+            R := NLSstr('ERROR.NUMBER',IntStr(Err));
+        end;
+        R := NLSStr('ERROR', R);
+        if Data <> '' then
+            R := Trim(R) + ', ' + DATA;
+        ErrorMsg := Trim(R);
+
+    end;
+
+    function ListPackageFiles(APkg : String) : integer;
+    var
+        FL : TDiskFile;
+        Size : longint;
+        S : String;
+        I : integer;
+        LenOK : boolean;
+        Indent : String;
+        IndentX : integer;
+    begin
+        ListPackageFiles := 0;
+
+        if not FileExists(TailDelim(PackageLSTPath) + APkg + FileExtLST) then begin
+            ListPackageFiles := 2;
+            exit;
+        end;
+        Indent := Tab + Tab;
+        IndentX := TabStop * 2;
+        PkgMissing := 0;
+        PkgFiles := 0;
+        PkgBytes := 0;
+        FL.Create(nil);
+        FL.Assign(TailDelim(PackageLSTPath) + APkg + FileExtLST);
+        FL.Reset;
+        FL.Seek(0);
+        I := 0;
+        while (FL.Result = 0) and (not FL.EOF) do begin
+            TestBreak;
+            LenOK := FL.ReadLn(S, Sizeof(S) - 1);
+            S := Trim(S);
+            if FL.Result <> 0 then begin
+                WriteLn(Indent, ErrorMsg(FL.Result, TailDelim(PackageLSTPath) + APkg + FileExtLST));
+                break;
+            end;
+            if Trim(S) = '' then Continue;
+            Inc(I);
+            if Not LenOK then begin
+                WriteLn(Indent, NLSstr('LINE.TOOLONG', IntStr(I)));
+                Continue;
+            end;
+
+            Size := SizeOfFile(S + 'x');
+            if DOSError <> 0 then begin
+                WriteLn(Tab, ErrorMsg(DOSError, S));
+                Size := 0;
+                Inc(TotalMissing);
+                Inc(PkgMissing);
+                continue;
+            end;
+            PkgBytes := PkgBytes + Size;
+            TotalBytes := TotalBytes + Size;
+            Inc(PkgFiles);
+            Inc(TotalFiles);
+            WriteLn(Tab,Size, ', ', S);
+{            if S = '' then Break; }
+        end;
+        FL.Close;
+        FL.Destroy;
     end;
 
     function DisplayFile(AObject : PObject) : integer; far;
@@ -170,19 +253,6 @@ const
         WriteLn;
     end;
 
-    function ListPackageFiles(APkg : String) : integer;
-    var
-        FL : TDiskFile;
-    begin
-        if not FileExists(TailDelim(PackageLSTPath) + APkg + FileExtLST) then begin
-            ListPackageFiles := 2;
-            exit;
-        end;
-        FL.Create(nil);
-        FL.Destroy;
-        ListPackageFiles := 0;
-    end;
-
     function DisplayPkgMetadata(AObject : PObject) : integer; far;
     var
         Item : PDirItem;
@@ -243,9 +313,9 @@ const
                     else
                         WrapWriteLn(P);
                 end;
-                if ListFiles > 0 then begin
-                    Err := ListPackageFiles(BaseNameOf(Item^.Name));
-                end;
+            end;
+            if ListFiles > 0 then begin
+                Err := ListPackageFiles(BaseNameOf(Item^.Name));
             end;
             Dispose(LSM, Destroy);
         end;
@@ -300,7 +370,7 @@ const
             WriteLn(NLSStr('PKG.NOTFOUND', PkgWildCard));
             if PkgTesting then  Halt(2);
         end;
-        WriteLn(NLS('MEMORY.USAGE'), X - Y, ' / ', MemAvail - X);
+        { WriteLn(NLS('MEMORY.USAGE'), X - Y, ' / ', MemAvail - X); }
     end;
 
     procedure DisplayVersion;
