@@ -23,7 +23,7 @@ uses QDOS, QClass, QStrings, QNLS, QPkgLSM, QAsciiZ, QFiles;
     end;
 
 const
-    Version : String = '2021-07-20';
+    Version : String = '2021-07-22';
     Tab : String = '    ';
     TabStop : word = 4;
 

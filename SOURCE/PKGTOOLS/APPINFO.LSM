@@ -9,10 +9,10 @@ Keywords:       dos 16 bit, asm, pascal
 Author:         Jerome Shidel <jerome _AT_ shidel.net>
 Maintained-by:  Jerome Shidel <jerome _AT_ shidel.net>
 Primary-site:   https://fd.lod.bz/repos/current/pkg-html/pkgtools.html
-Alternate-site:
+Alternate-site: https://gitlab.com/FDOS/util/pkgtools
 Original-site:  https://github.com/shidel/PkgTools
 Wiki-site:
 Mirror-site:
 Platforms:      DOS
-Copying-policy: GNU General Public License, Version 2
+Copying-policy: Mozilla Public License Version 2.0
 End
