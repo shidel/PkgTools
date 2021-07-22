@@ -187,7 +187,7 @@ const
                 WriteLn(', ', FilesStr(AFiles), ', ', SizeStr(ABytes, True))
             else
                 WriteLn(', ', SizeStr(ABytes, True));
-        end else if (AMissing <> 0) then WriteLn;
+        end else if (AMissing <> 0) or (ReportMissing) then WriteLn;
     end;
 
     function ListPackageFiles(APkg : String) : integer;
