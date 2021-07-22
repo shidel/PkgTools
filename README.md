@@ -1,2 +1,3 @@
 # PkgTools
-DOS Utilities released to package management on FreeDOS
+
+Some general package information and management utilities for FreeDOS
