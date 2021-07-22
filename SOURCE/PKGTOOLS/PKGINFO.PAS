@@ -29,6 +29,8 @@ const
     ListMore : String = '*title;*version;entered;' +
         'description;summary;changes;keywords;author;maintained;' +
         'primary;alternate;wiki;mirror;*copying';
+    ListMode : integer = 1;
+
     Execuatable : String = ';EXE;COM;BAT;';
     PrefixLSM : Str4 = 'LSM.';
 
@@ -120,8 +122,13 @@ const
             ListPackageFiles := 2;
             exit;
         end;
-        Indent := Tab + Tab;
-        IndentX := TabStop * 2;
+        if ListMode < 2 then begin
+            Indent := Tab;
+            IndentX := TabStop;
+        end else begin
+            Indent := Tab + Tab;
+            IndentX := TabStop * 2;
+        end;
         PkgMissing := 0;
         PkgFiles := 0;
         PkgBytes := 0;
@@ -202,6 +209,7 @@ const
             (MatchWildCard(PkgWildCard, BaseNameOf(Item^.Name)) = false) then exit;
         Inc(PkgShown);
         WriteLn(BaseNameOf(Item^.Name));
+        if ListFiles > 0 then ListPackageFiles(BaseNameOf(Item^.Name));
     end;
 
     function DisplayPkgTitle(AObject : PObject) : integer; far;
@@ -229,6 +237,7 @@ const
             WriteLn(RSpace(BaseNameOf(Item^.Name), 9), ': ', T, V);
             Dispose(LSM, Destroy);
         end;
+        if ListFiles > 0 then ListPackageFiles(BaseNameOf(Item^.Name));
     end;
 
     function ExpandMetaID(AStr:String) : String;
@@ -343,9 +352,8 @@ const
                         WrapWriteLn(P);
                 end;
             end;
-            if ListFiles > 0 then begin
+            if ListFiles > 0 then
                 Err := ListPackageFiles(BaseNameOf(Item^.Name));
-            end;
             Dispose(LSM, Destroy);
         end;
     end;
@@ -374,7 +382,7 @@ const
         Inc(MetaFieldWidth, 2);
     end;
 
-    procedure ListPackages(Mode:integer);
+    procedure ListPackages;
     var
         Pkgs : PPackageList;
         X, Y : LongInt;
@@ -383,7 +391,7 @@ const
 
         Pkgs := PPackageList(NewPackageList(nil));
         Pkgs^.GetInstalled;
-        case Mode of
+        case ListMode of
             0: Pkgs^.ForEach(DisplayFile);
             1: Pkgs^.ForEach(DisplayPkgTitle);
             2: begin
@@ -434,7 +442,6 @@ const
     var
         I : integer;
         Opt, H : String;
-        ListMode : integer;
     begin
          for I := 1 to ParamCount do
             if ParamStr(I) = '//' then SwitchChar := '/';
@@ -446,7 +453,6 @@ const
             else if (UCase(ParamStr(I)) = SwitchChar + 'NLS') then
                 SetLanguage(ParamStr(I+1));
 
-        ListMode := 1;
         I := 1;
         while I <= ParamCount do begin
             Opt:=UCase(ParamStr(I));
@@ -480,8 +486,7 @@ const
                 PkgWildCard := Opt; { Already Uppercase :-) }
             end;
         end;
-        if (ListMode >= 0) then
-            ListPackages(ListMode);
+        if (ListMode >= 0) then ListPackages;
     end;
 
 begin
