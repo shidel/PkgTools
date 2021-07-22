@@ -53,7 +53,6 @@ const
     ListFiles : integer = 0; { 0 = don't; 1 = invisible for Missing & Usage;
                                2 = EXE, COM & BAT; 3 = Everything }
 
-
     procedure ProgramMessages; assembler;
     asm
         db 'LANGUAGE=Built-in',0
@@ -121,7 +120,6 @@ const
         if Data <> '' then
             R := Trim(R) + ', ' + DATA;
         ErrorMsg := Trim(R);
-
     end;
 
     function NLSPlural(AID :String; D :String; Plural : boolean) : String;
@@ -536,6 +534,9 @@ const
     end;
 
     procedure ParseCommandLine;
+    const
+        ShowVersion : boolean = false;
+        Toggle : boolean = false;
     var
         I : integer;
         Opt, H : String;
@@ -555,11 +556,14 @@ const
             Opt:=UCase(ParamStr(I));
             Inc(I);
             if Opt = SwitchChar + 'NLS' then begin Inc(I) end
+            else if Opt = SwitchChar + 'VER' then
+                ShowVersion := True
             else if Opt = SwitchChar + 'N' then
                 ListMode := 0
-            else if Opt = SwitchChar + 'L' then
-                ListMode := 1
-            else if Opt = SwitchChar + 'I' then begin
+            else if Opt = SwitchChar + 'L' then begin
+                ListMode := 1;
+                Toggle := True;
+            end else if Opt = SwitchChar + 'I' then begin
                 ListMode := 2;
                 DetailLevel := 0;
             end else if Opt = SwitchChar + 'D' then begin
@@ -582,6 +586,10 @@ const
             end else begin
                 PkgWildCard := Opt; { Already Uppercase :-) }
             end;
+        end;
+        if ShowVersion then begin
+            DisplayVersion;
+            if (not Toggle) and (ListMode = 1) then Halt(0);
         end;
         if (ListMode >= 0) then ListPackages;
     end;
