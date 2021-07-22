@@ -1,6 +1,8 @@
 ; Below whenever a $ is used, it represents a variable or string that will be
 ; inserted replacing the $ in the translation. These are not variables like
-; $NLS, the $ will be replaced and NLS will remain.
+; $NLS, the $ will be replaced and NLS will remain. The exception to this
+; rule is when $ is followed by a number. For example, $0, $1, etc. In those
+; very rare cases, there are multiple strings that will be replaced.
 
 LANG=EN
 LANGUAGE=english
@@ -14,6 +16,11 @@ PROG.ABORT=program aborted
 
 MEM.USAGE=Memory Usage
 ERROR.NUMBER=Error #$
+BAD.SWITCH=See help: invalid switch '$'
+
+PKG.INSTALLED=package '$' is installed
+PKG.NOTFOUND=Unable to find a package matching '$'
+LST.NOTFOUND=File list for package not found
 
 LSM.TITLE=Title
 LSM.ENTERED-DATE=Date
@@ -31,7 +38,22 @@ LSM.ALTERNATE-SITE=Alternate Site
 LSM.ORIGINAL-SITE=Original Site
 LSM.WIKI-SITE=Wiki Site
 LSM.MIRROR-SITE=Mirror Site
-LSM.NA=(n/a)
+
+MISSING.NONE=No missing files
+MISSING.SOME=Missing files
+MISSING.ALL=All files are missing
+
+BINARIES=Executable files
+ALLFILES=File list
+NA=(n/a)
+
+USAGE=Disk Usage
+
+BYTE=byte
+BYTES=bytes
+KBYTE=kb
+MBYTE=mb
+MISSING=missing
 
 ; HELP numbers can change and vary. However, they must be consecutive. Add more
 ; lines, reduce the total count, insert between lines. Doesn't matter. Just do
@@ -51,11 +73,11 @@ HELP.10=     $H          Display help and exit
 HELP.11=
 HELP.12=     $N          Names of installed packages
 HELP.13=     $L          List installed packages (names, titles, version)
-HELP.14=     $D          Details of installed packages
-HELP.15=
-HELP.16=Mode modifier options, that automatically enable $D:
-HELP.17=
-HELP.18=     $M          Provides more detail information
+HELP.14=     $I          Details of installed packages
+HELP.15=     $D          Like $I, but provides more detail information
+HELP.16=
+HELP.17=Mode modifier options:
+HELP.18=
 HELP.19=     $R          Report missing files
 HELP.20=     $E          List executable files
 HELP.21=     $A          List all files

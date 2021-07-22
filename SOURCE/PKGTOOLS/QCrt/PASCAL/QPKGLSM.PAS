@@ -13,6 +13,10 @@ interface
 
     uses QClass, QDOS, QAsciiZ, QNLS, QStrings;
 
+    const
+        FileExtLSM : Str4 = '.LSM';
+        FileExtLST : Str4 = '.LST';
+
     var
         PackageLSMPath : String;
         PackageLSTPath : String;
@@ -69,7 +73,7 @@ var
 begin
     if Assigned(DLang) then Clear;
     ReadMetaData := 0;
-    DLang := LoadAsciiFile(TailDelim(PackageLSMPath) + APackage + '.LSM', DSize);
+    DLang := LoadAsciiFile(TailDelim(PackageLSMPath) + APackage + FileExtLSM, DSize);
     if Not Assigned(DLang) then begin
         ReadMetaData := DSize;
         Exit;
@@ -207,7 +211,7 @@ end;
 
 function TPackageList.Getinstalled : integer;
 begin
-    GetDirList(TailDelim(PackageLSMPath) + '*.LSM', faAnyFile);
+    GetDirList(TailDelim(PackageLSMPath) + '*' + FileExtLSM, faAnyFile);
     GetInstalled := Count;
 end;
 

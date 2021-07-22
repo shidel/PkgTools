@@ -10,7 +10,7 @@ can obtain one at http://mozilla.org/MPL/2.0/.
 {$M 32678,102400,655360}
 program Package_Info;
 
-uses QDOS, QClass, QStrings, QNLS, QPkgLSM, QAsciiZ;
+uses QDOS, QClass, QStrings, QNLS, QPkgLSM, QAsciiZ, QFiles;
 
     procedure TestBreak;
     begin
@@ -26,12 +26,19 @@ const
     ListMore : String = '*title;*version;' +
         'description;summary;changes;keywords;author;maintained;' +
         'primary;alternate;wiki;mirror;*copying;entered;';
+    PrefixLSM : Str4 = 'LSM.';
     DetailLevel : integer = 0;
     MetaFieldWidth : word = 0;
     PkgWildCard : String = '*';
     PkgShown : integer = 0;
+    PkgTesting : boolean = false;
     Tab : String = '    ';
     TabStop : word = 4;
+    ReportMissing : boolean = false;
+    ReportUsage : boolean = false;
+    ListFiles : integer = 0; { 0 = don't; 1 = invisible for Missing & Usage;
+                               2 = EXE, COM & BAT; 3 = Everything }
+
 
     procedure ProgramMessages; assembler;
     asm
@@ -41,8 +48,11 @@ const
         db 'PROG.DESC=Package Information Utility',0
         db 'PROG.ABORT=^C - aborted',0
         db 'MEM.USAGE=Memory Usage',0
+        db 'BAD.SWITCH=invalid switch $',0
+        db 'PKG.INSTALLED=package $ is installed',0
+        db 'PKG.NOTFOUND=package $ not found',0
         db 'LSM.TITLE=Title',0
-        db 'LSM.ENTERED-DATE=Date',0
+        db 'LSM.ENTERED-DATE=Entered Date',0
         db 'LSM.DESCRIPTION=Description',0
         db 'LSM.VERSION=Version',0
         db 'LSM.SUMMARY=Summary',0
@@ -57,7 +67,14 @@ const
         db 'LSM.ORIGINAL-SITE=Original Site',0
         db 'LSM.WIKI-SITE=Wiki Site',0
         db 'LSM.MIRROR-SITE=Mirror Site',0
-        db 'HELP.0=embedded help not available',0
+        { Not LSM but used there }
+        db 'NA=',0
+        db 'ALLFILES=File list',0
+        db 'BINARIES=File list',0
+        db 'MISSING.SOME=Missing files',0
+        db 'MISSING.NONE=No missing files'
+        db 'MISSING.ALL=All files are missing'
+        db 'HELP.0=no built-in help available',0
 
         db 0
     end;
@@ -153,6 +170,19 @@ const
         WriteLn;
     end;
 
+    function ListPackageFiles(APkg : String) : integer;
+    var
+        FL : TDiskFile;
+    begin
+        if not FileExists(TailDelim(PackageLSTPath) + APkg + FileExtLST) then begin
+            ListPackageFiles := 2;
+            exit;
+        end;
+        FL.Create(nil);
+        FL.Destroy;
+        ListPackageFiles := 0;
+    end;
+
     function DisplayPkgMetadata(AObject : PObject) : integer; far;
     var
         Item : PDirItem;
@@ -207,11 +237,14 @@ const
                 end;
 
                 if R or Assigned(P) then begin
-                    Write(Tab, RSpace(NLS('LSM.' + M) + ':', MetaFieldWidth));
+                    Write(Tab, RSpace(NLS(PrefixLSM + M) + ':', MetaFieldWidth));
                     if not Assigned(P) then
-                        WriteLn(NLS('LSM.NA'))
+                        WriteLn(NLS(PrefixLSM + 'NA'))
                     else
                         WrapWriteLn(P);
+                end;
+                if ListFiles > 0 then begin
+                    Err := ListPackageFiles(BaseNameOf(Item^.Name));
                 end;
             end;
             Dispose(LSM, Destroy);
@@ -235,7 +268,7 @@ const
             Delete(L,1, I);
             if (M <> '') and (M[1] = '*') then
                 Delete(M, 1,1);
-            M:=NLS('LSM.' + ExpandMetaID(M));
+            M:=NLS(PrefixLSM + ExpandMetaID(M));
             if Length(M) > MetaFieldWidth then
                 MetaFieldWidth := Length(M);
         end;
@@ -263,7 +296,11 @@ const
         Y := MemAvail;
 
         Dispose(Pkgs, Destroy);
-        { WriteLn(NLS('MEMORY.USAGE'), X - Y, ' / ', MemAvail - X); }
+        if PkgShown = 0 then begin
+            WriteLn(NLSStr('PKG.NOTFOUND', PkgWildCard));
+            if PkgTesting then  Halt(2);
+        end;
+        WriteLn(NLS('MEMORY.USAGE'), X - Y, ' / ', MemAvail - X);
     end;
 
     procedure DisplayVersion;
@@ -320,11 +357,25 @@ const
                 ListMode := 0
             else if Opt = SwitchChar + 'L' then
                 ListMode := 1
-            else if Opt = SwitchChar + 'D' then
-                ListMode := 2
-            else if Opt = SwitchChar + 'M' then begin
+            else if Opt = SwitchChar + 'I' then begin
+                ListMode := 2;
+                DetailLevel := 0;
+            end else if Opt = SwitchChar + 'D' then begin
                 DetailLevel := 1;
                 ListMode := 2;
+            end else if Opt = SwitchChar + 'R' then begin
+                if ListFiles < 1 then ListFiles := 1;
+                ReportMissing := True;
+            end else if Opt = SwitchChar + 'U' then begin
+                if ListFiles < 1 then ListFiles := 1;
+                ReportUsage := True;
+            end else if Opt = SwitchChar + 'E' then begin
+                if ListFiles < 2 then ListFiles := 2;
+            end else if Opt = SwitchChar + 'A' then begin
+                if ListFiles < 3 then ListFiles := 3;
+            end else if Opt[1] = SwitchChar then begin
+                WriteLn(NLSStr('BAD.SWITCH', OPT));
+                Halt(1);
             end else begin
                 PkgWildCard := Opt; { Already Uppercase :-) }
             end;
