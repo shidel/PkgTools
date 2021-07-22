@@ -15,5 +15,5 @@ call tpc /M /OQCRT\PASCAL /IQCRT\PASCAL -UQCRT\PASCAL -EBIN PKGINFO.PAS
 del BIN\*.TPU
 
 if exist bin\pkginfo.exe dir bin\*.exe | grep -i exe
-rem upx -9 --8086 BIN\*.EXE
+upx -9 --8086 BIN\*.EXE
 
