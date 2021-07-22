@@ -120,11 +120,25 @@ const
 
     function SizeStr(I : Longint; Human : boolean) : String;
     var
-        S : String;
+        S, X : String;
+        R : {$IFOPT N+} Extended {$ELSE} Real {$ENDIF};
     begin
         S := '';
-        if Human then
-            S := NLSPlural('BYTE', IntStr(I), I <> 1);
+        if Human then begin
+            X := 'BYTE';
+            if I >= 2048 then begin
+                X := 'KBYTE';
+                R := I / 1024;
+                if R >= 2048 then begin
+                    X := 'MBYTE';
+                    R := R / 1024;
+                end;
+            end;
+            if X = 'BYTE' then
+                S := NLSPlural('BYTE', IntStr(I), I <> 1)
+            else
+                S := NLSPlural(X, RealStr(R, 1), True)
+        end;
         if S = '' then
             S := IntStr(I);
         SizeStr := S;
