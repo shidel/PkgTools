@@ -9,7 +9,7 @@ can obtain one at http://mozilla.org/MPL/2.0/.
 
 {$M 32678,102400,655360}
 {$S+}
-{$DEFINE FAKELOST}
+{ DEFINE FAKELOST}
 program Package_Info;
 
 uses QDOS, QClass, QStrings, QNLS, QPkgLSM, QAsciiZ, QFiles;
@@ -140,15 +140,43 @@ const
         FilesStr := NLSPlural('FILE', IntStr(I), I <> 1);
     end;
 
+    procedure ShowStats(Indent : String; AFiles, AMissing, ABytes:longint);
+    begin
+        if (AMissing = 0) then begin
+            if ReportMissing then
+                Write(Indent, NLS('MISSING.NONE'));
+        end else if (AFiles = 0) then
+            Write(Indent, NLS('MISSING.ALL'))
+        else
+            Write(Indent, ReplaceStr(
+                ReplaceStr(NLSPlural('MISSING.SOME', '$', AFiles <> 1), '$0', NumberStr(AMissing), True),
+                '$1', NumberStr(AFiles + AMissing), True));
+
+        if ReportUsage then begin
+            if (AMissing = 0) and (not ReportMissing) then begin
+                WriteLn(Indent, FilesStr(AFiles), ', ', SizeStr(ABytes, True))
+            end else if PkgMissing = 0 then
+                WriteLn(', ', FilesStr(AFiles), ', ', SizeStr(ABytes, True))
+            else
+                WriteLn(', ', SizeStr(ABytes, True));
+        end else if (AMissing <> 0) then WriteLn;
+    end;
+
     function ListPackageFiles(APkg : String) : integer;
     var
         FL : TDiskFile;
         Size : longint;
         S : String;
         I, MS : integer;
-        LenOK : boolean;
+        LenOK, NWLState : boolean;
         Indent : String;
         IndentX : integer;
+        function NWL : String;
+        begin
+            NWL := '';
+            if NWLState then WriteLn;
+            NWLState := false;
+        end;
     begin
         ListPackageFiles := 0;
 
@@ -166,6 +194,7 @@ const
         PkgMissing := 0;
         PkgFiles := 0;
         PkgBytes := 0;
+        NWLState := (ListMode = 0);
         FL.Create(nil);
         FL.Assign(TailDelim(PackageLSTPath) + APkg + FileExtLST);
         FL.Reset;
@@ -177,19 +206,19 @@ const
             LenOK := FL.ReadLn(S, Sizeof(S) - 1);
             S := Trim(S);
             if FL.Result <> 0 then begin
-                WriteLn(Indent, ErrorMsg(FL.Result, TailDelim(PackageLSTPath) + APkg + FileExtLST));
+                WriteLn(NWL, Indent, ErrorMsg(FL.Result, TailDelim(PackageLSTPath) + APkg + FileExtLST));
                 break;
             end;
             if Trim(S) = '' then Continue;
             Inc(I);
             if Not LenOK then begin
-                WriteLn(Indent, NLSstr('LINE.TOOLONG', IntStr(I)));
+                WriteLn(NWL, Indent, NLSstr('LINE.TOOLONG', IntStr(I)));
                 Continue;
             end;
 
             Size := SizeOfFile(S {$IFDEF FAKELOST}+ 'x' {$ENDIF});
             if DOSError <> 0 then begin
-                if ReportMissing then WriteLn(Indent, ErrorMsg(DOSError, S));
+                if ReportMissing then WriteLn(NWL, Indent, ErrorMsg(DOSError, S));
                 Size := 0;
                 Inc(TotalMissing);
                 Inc(PkgMissing);
@@ -213,30 +242,13 @@ const
                 if Pos(';' + FileExtension(S) + ';', Execuatable) = 0 then
                     continue;
             end;
-            Write(Indent);
+            Write(NWL, Indent);
             if ReportUsage then Write(RSpace(SizeStr(Size, false), MS));
             WriteLn(S);
 {            if S = '' then Break; }
         end;
-        if (PkgMissing = 0) then begin
-            if ReportMissing then
-                Write(Indent, NLS('MISSING.NONE'));
-        end else if (PkgFiles = 0) then
-            Write(Indent, NLS('MISSING.ALL'))
-        else
-            Write(Indent, ReplaceStr(
-                ReplaceStr(NLSPlural('MISSING.SOME', '$', PkgFiles <> 1), '$0', NumberStr(PkgMissing), True),
-                '$1', NumberStr(I), True));
-
-        if ReportUsage then begin
-            if (PkgMissing = 0) and (not ReportMissing) then begin
-                WriteLn(Indent, FilesStr(PkgFiles), ', ', SizeStr(PkgBytes, True))
-            end else if PkgMissing = 0 then
-                WriteLn(', ', FilesStr(PkgFiles), ', ', SizeStr(PkgBytes, True))
-            else
-                WriteLn(', ', SizeStr(PkgBytes, True));
-        end else if (PkgMissing <> 0) then WriteLn;
-
+        if (NWLState = true) then Indent := ' - ';
+        ShowStats(Indent, PkgFiles, PkgMissing, PkgBytes);
         FL.Close;
         FL.Destroy;
     end;
@@ -251,8 +263,11 @@ const
         if (PkgWildCard <> '*') and
             (MatchWildCard(PkgWildCard, BaseNameOf(Item^.Name)) = false) then exit;
         Inc(PkgShown);
-        WriteLn(BaseNameOf(Item^.Name));
-        if ListFiles > 0 then ListPackageFiles(BaseNameOf(Item^.Name));
+        if ListFiles = 1 then begin
+            Write(RSpace(BaseNameOf(Item^.Name),9));
+            ListPackageFiles(BaseNameOf(Item^.Name));
+        end else
+            WriteLn(BaseNameOf(Item^.Name));
     end;
 
     function DisplayPkgTitle(AObject : PObject) : integer; far;
@@ -445,12 +460,21 @@ const
 
         Y := MemAvail;
 
-        Dispose(Pkgs, Destroy);
         if PkgShown = 0 then begin
             WriteLn(NLSStr('PKG.NOTFOUND', PkgWildCard));
             if PkgTesting then  Halt(2);
+        end else begin
+            WriteLn;
+            if PkgShown > 1 then begin
+                Write(ReplaceStr(ReplaceStr(NLS('PACKAGES'),
+                    '$0', NumberStr(PkgShown), True),
+                    '$1', NumberStr(Pkgs^.Count), True));
+                ShowStats(', ', TotalFiles, TotalMissing, TotalBytes);
+            end else
+                ShowStats('', TotalFiles, TotalMissing, TotalBytes);
         end;
-        { WriteLn(NLS('MEMORY.USAGE'), X - Y, ' / ', MemAvail - X); }
+        Dispose(Pkgs, Destroy);
+     { WriteLn(NLS('MEMORY.USAGE'), X - Y, ' / ', MemAvail - X); }
     end;
 
     procedure DisplayVersion;
