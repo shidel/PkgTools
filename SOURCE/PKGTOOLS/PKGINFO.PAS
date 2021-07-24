@@ -15,7 +15,7 @@ program Package_Info;
 uses PkgComn, QDOS, QClass, QStrings, QNLS, QPkgLSM, QAsciiZ, QFiles;
 
 const
-    AppVersion = '2021-07-22';
+    AppVersion = '2021-07-30';
 
     ListDetails : String = '*title;*version;*copying;description';
     ListMore : String = '*title;*version;entered;' +
