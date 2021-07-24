@@ -12,20 +12,10 @@ can obtain one at http://mozilla.org/MPL/2.0/.
 { DEFINE FAKELOST}
 program Package_Info;
 
-uses QDOS, QClass, QStrings, QNLS, QPkgLSM, QAsciiZ, QFiles;
-
-    procedure TestBreak;
-    begin
-        if CtrlCPressed then begin
-            WriteLn('^C -- ', NLS('PROG.ABORT'));
-            Halt(1);
-        end
-    end;
+uses PkgComn, QDOS, QClass, QStrings, QNLS, QPkgLSM, QAsciiZ, QFiles;
 
 const
-    Version : String = '2021-07-22';
-    Tab : String = '    ';
-    TabStop : word = 4;
+    AppVersion = '2021-07-22';
 
     ListDetails : String = '*title;*version;*copying;description';
     ListMore : String = '*title;*version;entered;' +
@@ -38,7 +28,6 @@ const
 
     DetailLevel : integer = 0;
     MetaFieldWidth : word = 0;
-    PkgWildCard : String = '*';
     PkgShown : integer = 0;
     PkgTesting : boolean = false;
     TotalFiles : longint = 0;
@@ -109,56 +98,6 @@ const
         db 0
     end;
 
-    function ErrorMsg(Err : integer; Data : String) : string;
-    var
-        R : String;
-    begin
-        R := NLSstr('ERROR.' + IntStr(Err),IntStr(Err));
-        if R = '' then begin
-            R := NLSstr('ERROR.NUMBER',IntStr(Err));
-        end;
-        R := NLSStr('ERROR', R);
-        if Data <> '' then
-            R := Trim(R) + ', ' + DATA;
-        ErrorMsg := Trim(R);
-    end;
-
-    function NLSPlural(AID :String; D :String; Plural : boolean) : String;
-    var
-        S : String;
-    begin
-        if Plural then S := NLSstr(AID + 'S', D) else S := '';
-        if (Not Plural) or (S = '') then S := NLSstr(AID, D);
-        if S = '' then S := NLSstr(AID + 'S', D);
-        NLSPlural := S;
-    end;
-
-    function SizeStr(I : Longint; Human : boolean) : String;
-    var
-        S, X : String;
-        R : {$IFOPT N+} Extended {$ELSE} Real {$ENDIF};
-    begin
-        S := '';
-        if Human then begin
-            X := 'BYTE';
-            if I >= 2048 then begin
-                X := 'KBYTE';
-                R := I / 1024;
-                if R >= 2048 then begin
-                    X := 'MBYTE';
-                    R := R / 1024;
-                end;
-            end;
-            if X = 'BYTE' then
-                S := NLSPlural('BYTE', IntStr(I), I <> 1)
-            else
-                S := NLSPlural(X, RealStr(R, 1), True)
-        end;
-        if S = '' then
-            S := IntStr(I);
-        SizeStr := S;
-    end;
-
     function NumberStr(I : Longint) : String;
     begin
         NumberStr := IntStr(I);
@@ -223,7 +162,7 @@ const
         PkgMissing := 0;
         PkgFiles := 0;
         PkgBytes := 0;
-        NWLState := (ListMode = 0);
+        NWLState := (ListMode = 0) or (ListMode >= 2); { could just be not 1 }
         FL.Create(nil);
         FL.Assign(TailDelim(PackageLSTPath) + APkg + FileExtLST);
         FL.Reset;
@@ -499,104 +438,46 @@ const
                     '$0', NumberStr(PkgShown), True),
                     '$1', NumberStr(Pkgs^.Count), True));
                 ShowStats(', ', TotalFiles, TotalMissing, TotalBytes);
-            end else
-                ShowStats('', TotalFiles, TotalMissing, TotalBytes);
+            end{ else
+                ShowStats('', TotalFiles, TotalMissing, TotalBytes); }
         end;
         Dispose(Pkgs, Destroy);
      { WriteLn(NLS('MEMORY.USAGE'), X - Y, ' / ', MemAvail - X); }
     end;
 
-    procedure DisplayVersion;
+    function Options(Option : String; var NextParam : Integer) : boolean; far;
     begin
-        WriteLn(NLS('PROG.TITLE'), ', ', NLSstr('PROG.VERSION', Version));
-        WriteLn(NLS('PROG.DESC'));
-        WriteLn;
+        Options := True;
+        if Option = 'N' then begin
+            ListMode := 0
+        end else if Option = 'L' then begin
+            ListMode := 1;
+        end else if Option = 'I' then begin
+            ListMode := 2;
+            DetailLevel := 0;
+        end else if Option = 'D' then begin
+            DetailLevel := 1;
+            ListMode := 2;
+        end else if Option = 'R' then begin
+            if ListFiles < 1 then ListFiles := 1;
+            ReportMissing := True;
+        end else if Option = 'U' then begin
+            if ListFiles < 1 then ListFiles := 1;
+            ReportUsage := True;
+        end else if Option = 'E' then begin
+            if ListFiles < 2 then ListFiles := 2;
+            ReportEXEs := True;
+        end else if Option = 'A' then begin
+            if ListFiles < 3 then ListFiles := 3;
+        end else
+            Options := False;
     end;
 
-    procedure DisplayHelp;
-    var
-        I, W, H : integer;
-        S : String;
-    begin
-        DisplayVersion;
-        I := 0;
-        W := GetNLS('HELP.' + IntStr(I), S);
-        S := ReplaceStr(S, '$', GetEXEBase, True);
-        if W < 0 then Halt(1);
-        H := W;
-        while (H = W) do begin
-            WriteLn(S);
-            Inc(I);
-            W := GetNLS('HELP.' + IntStr(I), S);
-            S := ReplaceStr(S, '$', SwitchChar, True);
-        end;
-        WriteLn;
-        Halt(0);
-    end;
-
-    procedure ParseCommandLine;
-    const
-        ShowVersion : boolean = false;
-        Toggle : boolean = false;
-    var
-        I : integer;
-        Opt, H : String;
-    begin
-         for I := 1 to ParamCount do
-            if ParamStr(I) = '//' then SwitchChar := '/';
-         for I := 1 to ParamCount do
-            if (UCase(ParamStr(I)) = SwitchChar + 'H')
-            or (UCase(ParamStr(I)) = SwitchChar + '?')
-            or (UCase(ParamStr(I)) = SwitchChar + 'HELP') then
-                DisplayHelp
-            else if (UCase(ParamStr(I)) = SwitchChar + 'NLS') then
-                SetLanguage(ParamStr(I+1));
-
-        I := 1;
-        while I <= ParamCount do begin
-            Opt:=UCase(ParamStr(I));
-            Inc(I);
-            if Opt = SwitchChar + 'NLS' then begin Inc(I) end
-            else if Opt = SwitchChar + 'VER' then
-                ShowVersion := True
-            else if Opt = SwitchChar + 'N' then
-                ListMode := 0
-            else if Opt = SwitchChar + 'L' then begin
-                ListMode := 1;
-                Toggle := True;
-            end else if Opt = SwitchChar + 'I' then begin
-                ListMode := 2;
-                DetailLevel := 0;
-            end else if Opt = SwitchChar + 'D' then begin
-                DetailLevel := 1;
-                ListMode := 2;
-            end else if Opt = SwitchChar + 'R' then begin
-                if ListFiles < 1 then ListFiles := 1;
-                ReportMissing := True;
-            end else if Opt = SwitchChar + 'U' then begin
-                if ListFiles < 1 then ListFiles := 1;
-                ReportUsage := True;
-            end else if Opt = SwitchChar + 'E' then begin
-                if ListFiles < 2 then ListFiles := 2;
-                ReportEXEs := True;
-            end else if Opt = SwitchChar + 'A' then begin
-                if ListFiles < 3 then ListFiles := 3;
-            end else if Opt[1] = SwitchChar then begin
-                WriteLn(NLSStr('BAD.SWITCH', OPT));
-                Halt(1);
-            end else begin
-                PkgWildCard := Opt; { Already Uppercase :-) }
-            end;
-        end;
-        if ShowVersion then begin
-            DisplayVersion;
-            if (not Toggle) and (ListMode = 1) then Halt(0);
-        end;
-        if (ListMode >= 0) then ListPackages;
-    end;
 
 begin
+    Version := AppVersion;
     SetBuiltInLanguage(@ProgramMessages);
     SetLanguage('');
-    ParseCommandLine;
+    ParseCommandLine(Options);
+    ListPackages;
 end.
