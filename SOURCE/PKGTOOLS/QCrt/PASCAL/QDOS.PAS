@@ -89,6 +89,7 @@ type
 
 var
     PathDelim   : Char;
+    DriveDelim  : Char;
     SwitchChar  : Char;
     DosError    : integer;
     WildCard    : String[3];
@@ -1648,6 +1649,7 @@ begin
 
     PathDelim := '\';
     WildCard := '*.*';
+    DriveDelim := ':';
 
     S := GetEnv('SWITCHCHAR');
     if S = '' then

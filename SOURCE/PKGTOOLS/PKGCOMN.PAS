@@ -31,6 +31,8 @@ interface
     function NLSPlural(AID :String; D :String; Plural : boolean) : String;
     function SizeStr(I : Longint; Human : boolean) : String;
 
+    procedure WriteHalt(Data : String; ExitCode : integer);
+
 implementation
 
     function ErrorMsg(Err : integer; Data : String) : string;
@@ -46,6 +48,13 @@ implementation
             R := Trim(R) + ', ' + DATA;
         ErrorMsg := Trim(R);
     end;
+
+    procedure WriteHalt (Data : String; ExitCode : integer);
+    begin
+        WriteLn(Data);
+        Halt(ExitCode);
+    end;
+
 
     function NLSPlural(AID :String; D :String; Plural : boolean) : String;
     var

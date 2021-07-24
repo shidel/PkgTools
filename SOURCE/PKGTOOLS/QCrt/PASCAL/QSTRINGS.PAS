@@ -26,6 +26,9 @@ type
 	Str32   = String[32];
 	Str40   = String[40];
 
+function CountStr(SubStr, Str : String) : integer;
+{ Returns total number of occurrences of SubStr within Str }
+
 function NextPos ( SubStr : String; S : String; StartPos : byte ) : byte;
 { Like Pos function, except starts searching at Startpos Byte. Uses Pos function. }
 function LastPos ( SubStr : String; S : String ) : byte;
@@ -1006,5 +1009,24 @@ begin
     { WriteLn('[D-',AWild, '/',AStr,']'); }
     MatchWildCard := ((AWild = '*') or (AWild = '')) and (AStr = '');
 end;
+
+function CountStr(SubStr, Str : String) : integer;
+var
+    I, P : integer;
+begin
+    I := 0;
+    P := 1;
+    if SubStr <> '' then
+        While True do begin
+            P := NextPos(SubStr, Str, P);
+            if P > 0 then begin
+                Inc(I);
+                P := P + Length(SubStr);
+            end else
+                break;
+        end;
+    CountStr := I;
+end;
+
 
 end.
