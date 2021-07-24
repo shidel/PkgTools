@@ -67,6 +67,7 @@ const
         db 'ERROR=Error ($)',0
         db 'ERROR.NUMBER=#$',0
         db 'ERROR.2=file not found',0
+        db 'ERROR.3=path not found',0
         db 'PKG.INSTALLED=package $ is installed',0
         db 'PKG.NOTFOUND=package $ not found',0
         db 'LST.NOTFOUND=File list for package not found',0
