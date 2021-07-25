@@ -8,27 +8,39 @@ can obtain one at http://mozilla.org/MPL/2.0/.
 }
 program Package_Maker;
 
-    uses PkgComn, QNLS, QDOS, QStrings;
+    uses PkgComn, QNLS, QDOS, QStrings, QFiles;
 
     type
         PToDo = ^TToDo;
         TToDo = record
             Path : PString;
-            Data : longint;
+            Data : LongInt;
+            Time : LongInt;
+            Attr : byte;
             Next : PToDo
+        end;
+        TDataItem = record
+            Name : TFileNameString;
+            Time : LongInt;
+            case Attr : byte of
+                faAnyfile   : ( Size : LongInt );
+                faDirectory : ( First : LongInt );
         end;
 
     const
-        InitScan : boolean = False; {After options processed either InitScan }
-        PostScan : boolean = False; {or PostScan will be true. Not BOTH }
-        DoneScan : boolean = False; { Kill temp file when done }
-        DataFile : String = '';     { Temp file name }
+        InitScan : boolean = False;     { After options processed either      }
+        PostScan : boolean = False;     { InitScan or PostScan will be true.  }
+                                        { But Not BOTH ! }
+        DoneScan : boolean = False;     { Kill temp file when done }
+        DataFile : PABstractFile = nil; { Temp data file name }
         ScanDrives : String = '';
         ToDo     : PToDo = nil;
-        TotalFiles : longint = 0;
-        TotalDirs  : longint = 0;
-        NewFiles : longint = 0;
-        NewDirs  : longint = 0;
+        TotalFiles : LongInt = 0;
+        TotalDirs  : LongInt = 0;
+        TotalBytes : LongInt = 0;
+        NewFiles : LongInt = 0;
+        NewDirs  : LongInt = 0;
+        NewBytes : LongInt = 0;
 
     procedure ProgramMessages; assembler;
     asm
@@ -62,43 +74,72 @@ program Package_Maker;
         db 'SCAN.POST=Performing post install scan',0
         db 'SCAN.WAIT=This could take a while',0
         db 'SCAN.MISSING=Initial scan not found',0
+        db 'SCAN.RUN=Scanning...',0
+        db 'SCAN.DONE=Done',0
+        db 'SCAN.DONEFAST=Or, not. Wow, that was quick. Done!',0
 
-        db 'TEMP.DEL=temporary data file $ deleted'
-
-        db 'STATS=found $0 directories, $1 files, $2'
+        db 'TEMP.DEL=temporary data file $ deleted',0
+        db 'STATS.NOW=found $0 directories, $1 files, $2',0
+        db 'STATS.NEW=found $1 new files and $2',0
 
         db 0
+    end;
+
+    procedure CheckDataFileError;
+    var
+        R : integer;
+    begin
+        R := DataFile^.IOResult;
+        if R <> 0 then WriteHalt(ErrorMsg(R, DataFile^.Name), R);
     end;
 
     procedure CleanUp(ShowMsg : boolean);
     var
         F : File;
-        R : integer;
     begin
-        if FileExists(DataFile) then begin
-            {$I-}
-            Assign(F,DataFile);
-            Erase(F);
-            R := IOResult;
-            {$I+}
-            if R <> 0 then
-                WriteHalt(ErrorMsg(R, DataFile), R);
-            if ShowMsg then
-                WriteLn(NLSstr('TEMP.DEL', Datafile));
-        end;
+        if Not Assigned(DataFile) then exit;
+        DataFile^.Erase;
+        if ShowMsg then
+            WriteLn(NLSstr('TEMP.DEL', Datafile^.Name));
     end;
 
-    procedure AddToDo(S : String; Data : LongInt);
+    procedure UpdateDirItem(APos : LongInt; S : String; Time:LongInt; Attr : byte);
+    var
+        D : TDataItem;
+        X : byte;
+    begin
+        DataFile^.Seek(APos);
+        CheckDataFileError;
+        S := TailDelim(S);
+        SetLength(S, Length(S) - 1);
+        X :=  LastPos('\', S) + 1;
+        FillChar(D.Name, Sizeof(D.Name), 0);
+        D.Name := Copy(S, X, Sizeof(TFileNameString));
+        D.Attr := Attr;
+        D.Time := Time;
+        D.First := DataFile^.FileSize;
+        DataFile^.WriteRecord(D, Sizeof(D));
+        CheckDataFileError;
+        DataFile^.SeekEOF;
+        CheckDataFileError;
+    end;
+
+    procedure AddToDo(S : String; Time : LongInt; Attr : byte);
     var
         P : PToDo;
     begin
+        S := TailDelim(S);
         P := New(PToDo);
         P^.Path := StrPtr(S);
         P^.Next := ToDo;
-        P^.Data := Data;
+
+        P^.Data := DataFile^.FileSize;
+        P^.Attr := Attr;
         ToDo := P;
         Inc(TotalDirs);
+        UpdateDirItem(P^.Data, S, Time, Attr)
     end;
+
 
     function CountStr(SubStr, Str : String) : integer;
     var
@@ -118,65 +159,117 @@ program Package_Maker;
         CountStr := I;
     end;
 
+    procedure ScanStats(New : boolean);
+    var
+        S : String;
+    begin
+        if New then begin
+            S := NLS('STATS.NEW');
+            S := ReplaceStr(S, '$0', IntStr(NewDirs), True);
+            S := ReplaceStr(S, '$1', IntStr(NewFiles), True);
+            S := ReplaceStr(S, '$2', SizeStr(NewBytes, True), True);
+        end else begin
+            S := NLS('STATS.NOW');
+            S := ReplaceStr(S, '$0', IntStr(TotalDirs), True);
+            S := ReplaceStr(S, '$1', IntStr(TotalFiles), True);
+            S := ReplaceStr(S, '$2', SizeStr(TotalBytes, True), True);
+        end;
+        WriteLn(S);
+    end;
+
     procedure Scanning;
     var
         P, N : PToDo;
         S : TSearchRec;
         D : String;
+        IPath, IName : String;
+        I : TDataItem;
     begin
+        Write(NLS('SCAN.RUN'));
+        ElapsedTicks(true);
+        IPath := TailDelim(PathOf(DataFile^.Name));
+        IName := Copy(DataFile^.Name, Length(IPath) + 1, Sizeof(TFileNameString));
         while Assigned(ToDo) do begin
             TestBreak;
+            Tumbler;
 
             P := ToDo;
             ToDo := P^.Next;
             D := PtrStr(P^.Path);
-            FreeStr(P^.Path);
+            UpdateDirItem(P^.Data, D, P^.Time, P^.Attr);
             Dispose(P);
 
             FindFirst( D + '*.*', faAnyFile, S);
-            WriteLn(Space(CountStr(PathDelim, D) * 2), BaseNameOf(NoTailDelim(D)));
+            { WriteLn(Space(CountStr(PathDelim, D) * 2), BaseNameOf(NoTailDelim(D))); }
             while DOSError = 0 do begin
                 TestBreak;
                 if S.Attr and faDirectory = faDirectory then begin
                     if (S.Name <> '.') and (S.Name <> '..') then begin
-                        AddToDo(D + S.Name + PathDelim, 0);
+                        AddToDo(D + S.Name + PathDelim, S.Time, S.Attr);
                     end;
-                end else
+                end else if (IName <> S.Name) or (IPath <> D) then begin
                     Inc(TotalFiles);
+                    Inc(TotalBytes, S.Size);
+                    FillChar(I.Name, Sizeof(I.Name), 0);
+                    I.Name := S.Name;
+                    I.Attr := S.Attr;
+                    I.Time := S.Time;
+                    I.Size := S.Size;
+                    DataFile^.WriteRecord(I, Sizeof(I));
+                end; {else it is our temp file, ignore it}
                 FindNext(S);
             end;
+            FillChar(I, Sizeof(I), 0);
+            DataFile^.WriteRecord(I, Sizeof(I));
         end;
+        DataFile^.WriteRecord(I, Sizeof(I));
+        TumblerDone;
+        { Write(ElapsedTicks(False), ' '); }
+        if ElapsedTicks(true) < 180 then
+            WriteLn(NLS('SCAN.DONEFAST'))
+        else
+            WriteLn(NLS('SCAN.DONE'));
+        ScanStats(False);
     end;
 
     procedure PerformScan;
+    var
+        R : integer;
     begin
         if InitScan then begin
             WriteLn(NLS('SCAN.INIT'));
+            DataFile^.Rewrite;
         end else begin
             WriteLn(NLS('SCAN.POST'));
+            DataFile^.Reset;
         end;
+        CheckDataFileError;
         WriteLn(NLS('SCAN.WAIT'));
         while Length(ScanDrives) > 0 do begin
-            AddToDo(ScanDrives[1] + DriveDelim + PathDelim, 0);
+            AddToDo(ScanDrives[1] + DriveDelim + PathDelim, 0, $ff);
             Delete(ScanDrives, 1,1);
         end;
         Scanning;
+        DataFile^.Close;
+        CheckDataFileError;
     end;
 
     procedure PerformTask;
     var
         I : integer;
+        S : String;
     begin
         { Set TEMP Scan Data File Name }
-        if DataFile = '' then begin
-            DataFile := GetENV('TEMP');
-            if DataFile = '' then DataFile := GetENV('TMP');
-            if DataFile = '' then WriteHalt(NLS('ERROR.TEMP'),3);
-            DataFile := TailDelim(DataFile) + GetEXEBase + '.TMP';
+        if DataFile^.Name = '' then begin
+            S := GetENV('TEMP');
+            if S = '' then S := GetENV('TMP');
+            if S = '' then WriteHalt(NLS('ERROR.TEMP'),3);
+            S := TailDelim(S) + GetEXEBase + '.TMP';
+            DataFile^.Assign(S);
         end;
 
-        if not DirExists(PathOf(DataFile)) then
-            WriteHalt(ErrorMsg(3, PathOf(DataFile)) , 3);
+        if not DirExists(PathOf(DataFile^.Name)) then
+            WriteHalt(ErrorMsg(3, PathOf(DataFile^.Name)) , 3);
 
         { Scan type not specified, autodetect}
         if InitScan or PostScan = False then begin
@@ -184,7 +277,7 @@ program Package_Maker;
                 CleanUp(True);
                 Halt(0);
             end;
-            PostScan := FileExists(DataFile);
+            PostScan := FileExists(DataFile^.Name);
             InitScan := Not PostScan;
             DoneScan := PostScan;
         end;
@@ -206,7 +299,7 @@ program Package_Maker;
 
     function Options(Option : String; var NextParam : Integer) : boolean; far;
     begin
-        WriteLn('Opt');
+        WriteLn('What?');
         Options := False;
     end;
 
@@ -214,6 +307,7 @@ begin
     ScanDrives := 'C';
     SetBuiltInLanguage(@ProgramMessages);
     SetLanguage('');
+    DataFile := New(PDiskFile, Create(nil));
     ParseCommandLine(Options);
     PerformTask;
 end.

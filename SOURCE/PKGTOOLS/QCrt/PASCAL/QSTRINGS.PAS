@@ -134,11 +134,18 @@ procedure FreeStr(var P : PString);
 
 function MatchWildCard ( AWild, AStr : String ) : boolean;
 
+procedure SetLength(var S; NewLen : byte);
+
 implementation
 
 {$L QSTRINGS.OBJ}
 
 {----------------------------------------------------------------------------}
+    procedure SetLength(var S; NewLen : byte);
+    begin
+        Byte(S) := NewLen;
+    end;
+
   function UCase ( Str : String ) : String;
     begin
       asm

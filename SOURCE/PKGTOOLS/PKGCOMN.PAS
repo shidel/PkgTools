@@ -18,6 +18,7 @@ interface
         Tab : String = '    ';
         TabStop : word = 4;
         PkgWildCard : String = '*';
+        TumblerRate : integer = 10;
 
     type
         TCommandLineOption = function (Option : String; var NextParam : Integer) : boolean;
@@ -33,7 +34,38 @@ interface
 
     procedure WriteHalt(Data : String; ExitCode : integer);
 
+    procedure Tumbler;
+    procedure TumblerDone;
+    function ElapsedTicks(Reset : boolean) : LongInt; { Could use improvement,
+      eventually. At present, it is not used for anything import. So, don't
+      care about roll-overs and such pesky little things. }
+
 implementation
+
+    var
+        TimerTick : LongInt absolute $0040:$006c;  { Timer tick counter }
+
+    const
+        LastTick  : Longint = -1;
+        LastCount : integer = MaxInt - 1;
+        TumblePos : byte = 0;
+        TumbleChar : string = '|/-\';
+        LastTime : LongInt = MaxLongInt;
+
+    function ElapsedTicks(Reset : boolean) : LongInt;
+    var
+        Present, X : LongInt;
+    begin
+        Present := TimerTick;
+        if Present < LastTime then
+            X := MaxLongInt
+        else
+            X := (Present - LastTime);
+        if Reset then
+            LastTime := Present;
+        ElapsedTicks := X;
+    end;
+
 
     function ErrorMsg(Err : integer; Data : String) : string;
     var
@@ -175,5 +207,27 @@ implementation
         end;
         { ProcessPackages; Do it in utility }
     end;
+
+    procedure Tumbler;
+    begin
+        if LastTick = TimerTick then Exit;
+        LastTick := TimerTick;
+        Inc(LastCount);
+        If LastCount < TumblerRate then Exit;
+        LastCount := 0;
+        if TumblePos > 0 then Write(#8);
+        Inc(TumblePos);
+        If TumblePos > Length(TumbleChar) then TumblePos := 1;
+        Write(TumbleChar[TumblePos]);
+    end;
+
+    procedure TumblerDone;
+    begin
+        LastTick := -1;
+        LastCount := MaxInt - 1;
+        if TumblePos > 0 then Write(#8);
+        TumblePos := 0;
+    end;
+
 
 end.
