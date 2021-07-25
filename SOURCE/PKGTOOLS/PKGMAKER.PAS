@@ -194,18 +194,21 @@ program Package_Maker;
     const
         LastD : String = '';
         LastP : LongInt = 0;
+        LastX : LongInt = 0;
     var
         LastO : TDataItem;
-        CurD : String;
+        CurD, DD : String;
     begin
         FetchData := False;
         { Find Branch }
         if LastD <> D then begin
             CurD := '';
+            DD := D;
             DataFile^.SeekSOF;
             CheckDataFileError;
             repeat
                 TestBreak;
+                Tumbler;
                 DataFile^.ReadRecord(O, Sizeof(O));
                 CheckDataFileError;
                 { WriteLn('?', O.Name);}
@@ -217,21 +220,37 @@ program Package_Maker;
                 Delete(D, 1, Length(TailDelim(O.Name)));
             until (O.Name = '') or (D = '');
             { WriteLn(CurD, ' (', D, ')'); }
-            if (O.Name = '') then DataFile^.Result := 9;
-            if (D <> '') then DataFile^.Result := 18;
             CheckDataFileError;
+            if (O.Name = '') then Exit; { DataFile^.Result := 9; }
+            if (D <> '') then  Exit; { DataFile^.Result := 18; }
             LastD := CurD;
             LastP := O.First;
+            LastX := LastP;
             LastO := O;
         end;
-
+        DataFile^.Seek(LastP);
+        { WriteLn('?', D, '>', I.Name);}
+        while DataFile^.Result = 0 do begin
+            TestBreak;
+            Tumbler;
+            DataFile^.ReadRecord(O, Sizeof(O));
+            { WriteLn(O.Name); }
+            if (I.Name = O.Name) then Break;
+            if (O.Name = '') then DataFile^.Seek(LastX);
+            if (DataFile^.FilePos = LastP) then Break;
+        end;
+        CheckDataFileError;
+        LastP := DataFile^.FilePos;
+        FetchData := (I.Name = O.Name);
     end;
 
     procedure CompareScan(D : String; I : TSearchRec);
     var
         O : TDataItem;
     begin
-        FetchData(D, I, O);
+        if not FetchData(D, I, O) then begin
+            WriteLn('New: ', D + I.Name);
+        end;
 
     end;
 
@@ -264,6 +283,7 @@ program Package_Maker;
                 if S.Attr and faDirectory = faDirectory then begin
                     if (S.Name <> '.') and (S.Name <> '..') then begin
                         AddToDo(D + S.Name + PathDelim, S.Time, S.Attr);
+                        if PostScan then CompareScan(D, S);
                     end;
                 end else if (IName <> S.Name) or (IPath <> D) then begin
                     Inc(TotalFiles);
@@ -276,8 +296,8 @@ program Package_Maker;
                         I.Size := S.Size;
                         DataFile^.WriteRecord(I, Sizeof(I));
                     end;
+                    if PostScan then CompareScan(D, S);
                 end; {else it is our temp file, ignore it}
-                if PostScan then CompareScan(D, S);
                 FindNext(S);
             end;
             if InitScan then begin
@@ -353,6 +373,7 @@ program Package_Maker;
             end;
         end;
 
+        DoneScan := False;
         PerformScan;
         if DoneScan then CleanUp(False);
     end;
