@@ -82,6 +82,10 @@ program Package_Maker;
         db 'STATS.NOW=found $0 directories, $1 files, $2',0
         db 'STATS.NEW=found $1 new files and $2',0
 
+        db 'IDX.NEW.FILE=New: $',0
+        db 'IDX.NEW.DIR=New: $\',0
+        db 'IDX.MOD.FILE=Changed: $',0
+        db 'IDX.MOD.DIR=Changed: $\',0
         db 0
     end;
 
@@ -136,6 +140,7 @@ program Package_Maker;
 
         P^.Data := DataFile^.FileSize;
         P^.Attr := Attr;
+        P^.Time := Time;
         ToDo := P;
         Inc(TotalDirs);
         UpdateDirItem(P^.Data, S, Time, Attr)
@@ -165,16 +170,19 @@ program Package_Maker;
         S : String;
         XE, XF : LongInt;
     begin
-       XE := ElapsedTicks(true);
-        if XE = 0 then
-            XF := 0
-        else
-            XF := ((TotalFiles + TotalDirs) div XE) * 18;
-        { Write('(', ElapsedTicks(False), '/', XE, '/', XF, ') '); }
-        if XE < 90 then
-            WriteLn(NLS('SCAN.DONE.FAST'))
-        else
-            WriteLn(NLS('SCAN.DONE'));
+        if New = false then begin
+            if (NewFiles <> 0) or (NewDirs <> 0) then WriteLn;
+            XE := ElapsedTicks(true);
+            if XE = 0 then
+                XF := 0
+            else
+                XF := ((TotalFiles + TotalDirs) div XE) * 18;
+            { Write('(', ElapsedTicks(False), '/', XE, '/', XF, ') '); }
+            if XE < 90 then
+                WriteLn(NLS('SCAN.DONE.FAST'))
+            else
+                WriteLn(NLS('SCAN.DONE'));
+        end;
 
         if New then begin
             S := NLS('STATS.NEW');
@@ -249,9 +257,32 @@ program Package_Maker;
         O : TDataItem;
     begin
         if not FetchData(D, I, O) then begin
-            WriteLn('New: ', D + I.Name);
-        end;
+            if (I.Attr and faDirectory = faDirectory) then
+                Inc(NewDirs)
+            else begin
+                Inc(NewFiles);
+                Inc(NewBytes, I.Size);
+            end;
+            TumblerDone;
+            WriteLn;
+            Write(NLSstr('IDX.NEW.' +
+                WhichStr(I.Attr and faDirectory = faDirectory, 'FILE', 'DIR'),
+                D + I.Name), ' ');
+        end else if (I.Attr and faDirectory = faDirectory) and
+        (I.Attr and faDirectory = faDirectory) then begin
+            { I think we can just ignore modified DIR items }
+            { if (I.Time <> O.Time) or (I.Attr <> O.Attr) then begin
+                  TumblerDone;
+                  WriteLn;
+                  Write(NLSstr('IDX.MOD.DIR', D + I.Name), ' ');
+            end; }
 
+        end else if (I.Time <> O.Time) or (I.Attr <> O.Attr) or
+        (I.Size <> O.Size) then begin
+              TumblerDone;
+              WriteLn;
+              Write(NLSstr('IDX.MOD.FILE', D + I.Name), ' ');
+        end;
     end;
 
     procedure Scan;
@@ -310,6 +341,7 @@ program Package_Maker;
         end;
         TumblerDone;
         ScanStats(False);
+        if PostScan then ScanStats(True);
     end;
 
     procedure PerformScan;

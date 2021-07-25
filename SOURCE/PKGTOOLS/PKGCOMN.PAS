@@ -224,7 +224,7 @@ implementation
     begin
         LastTick := -1;
         LastCount := MaxInt - 1;
-        if TumblePos > 0 then Write(#8);
+        if TumblePos > 0 then Write(#8' '#8);
         TumblePos := 0;
     end;
 
