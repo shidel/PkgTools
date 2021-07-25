@@ -66,7 +66,6 @@ implementation
         ElapsedTicks := X;
     end;
 
-
     function ErrorMsg(Err : integer; Data : String) : string;
     var
         R : String;

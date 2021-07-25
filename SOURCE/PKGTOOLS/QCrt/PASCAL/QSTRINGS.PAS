@@ -136,6 +136,8 @@ function MatchWildCard ( AWild, AStr : String ) : boolean;
 
 procedure SetLength(var S; NewLen : byte);
 
+procedure HexDump(const D; L : word);
+
 implementation
 
 {$L QSTRINGS.OBJ}
@@ -1035,5 +1037,20 @@ begin
     CountStr := I;
 end;
 
+procedure HexDump(const D; L : word);
+type
+    M = array[0..65534] of byte;
+var
+    I : word;
+begin
+    I := 0;
+    while I <= L do begin
+        Write(HEXbyte(M(D)[I]), ' ');
+        Inc(I);
+        if I mod $10 = 0 then WriteLn;
+
+    end;
+    if I mod $10 <> 0 then WriteLn;
+end;
 
 end.

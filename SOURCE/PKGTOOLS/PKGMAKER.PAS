@@ -76,7 +76,7 @@ program Package_Maker;
         db 'SCAN.MISSING=Initial scan not found',0
         db 'SCAN.RUN=Scanning...',0
         db 'SCAN.DONE=Done',0
-        db 'SCAN.DONEFAST=Or, not. Wow, that was quick. Done!',0
+        db 'SCAN.DONE.FAST=Or, not. Wow, that was quick. Done!',0
 
         db 'TEMP.DEL=temporary data file $ deleted',0
         db 'STATS.NOW=found $0 directories, $1 files, $2',0
@@ -108,6 +108,7 @@ program Package_Maker;
         D : TDataItem;
         X : byte;
     begin
+        if not InitScan then Exit;
         DataFile^.Seek(APos);
         CheckDataFileError;
         S := TailDelim(S);
@@ -162,7 +163,19 @@ program Package_Maker;
     procedure ScanStats(New : boolean);
     var
         S : String;
+        XE, XF : LongInt;
     begin
+       XE := ElapsedTicks(true);
+        if XE = 0 then
+            XF := 0
+        else
+            XF := ((TotalFiles + TotalDirs) div XE) * 18;
+        { Write('(', ElapsedTicks(False), '/', XE, '/', XF, ') '); }
+        if XE < 90 then
+            WriteLn(NLS('SCAN.DONE.FAST'))
+        else
+            WriteLn(NLS('SCAN.DONE'));
+
         if New then begin
             S := NLS('STATS.NEW');
             S := ReplaceStr(S, '$0', IntStr(NewDirs), True);
@@ -177,7 +190,52 @@ program Package_Maker;
         WriteLn(S);
     end;
 
-    procedure Scanning;
+    function FetchData(D : String; I : TSearchRec; var O : TDataItem) : boolean;
+    const
+        LastD : String = '';
+        LastP : LongInt = 0;
+    var
+        LastO : TDataItem;
+        CurD : String;
+    begin
+        FetchData := False;
+        { Find Branch }
+        if LastD <> D then begin
+            CurD := '';
+            DataFile^.SeekSOF;
+            CheckDataFileError;
+            repeat
+                TestBreak;
+                DataFile^.ReadRecord(O, Sizeof(O));
+                CheckDataFileError;
+                { WriteLn('?', O.Name);}
+                if Copy(D, 1, Length(O.Name)) <> O.Name then continue;
+                if Copy(D, Length(O.Name) + 1, 1) <> PathDelim then continue;
+                DataFile^.Seek(O.First);
+                CheckDataFileError;
+                CurD := TailDelim(CurD + O.Name);
+                Delete(D, 1, Length(TailDelim(O.Name)));
+            until (O.Name = '') or (D = '');
+            { WriteLn(CurD, ' (', D, ')'); }
+            if (O.Name = '') then DataFile^.Result := 9;
+            if (D <> '') then DataFile^.Result := 18;
+            CheckDataFileError;
+            LastD := CurD;
+            LastP := O.First;
+            LastO := O;
+        end;
+
+    end;
+
+    procedure CompareScan(D : String; I : TSearchRec);
+    var
+        O : TDataItem;
+    begin
+        FetchData(D, I, O);
+
+    end;
+
+    procedure Scan;
     var
         P, N : PToDo;
         S : TSearchRec;
@@ -196,7 +254,7 @@ program Package_Maker;
             P := ToDo;
             ToDo := P^.Next;
             D := PtrStr(P^.Path);
-            UpdateDirItem(P^.Data, D, P^.Time, P^.Attr);
+            If InitScan then UpdateDirItem(P^.Data, D, P^.Time, P^.Attr);
             Dispose(P);
 
             FindFirst( D + '*.*', faAnyFile, S);
@@ -210,25 +268,27 @@ program Package_Maker;
                 end else if (IName <> S.Name) or (IPath <> D) then begin
                     Inc(TotalFiles);
                     Inc(TotalBytes, S.Size);
-                    FillChar(I.Name, Sizeof(I.Name), 0);
-                    I.Name := S.Name;
-                    I.Attr := S.Attr;
-                    I.Time := S.Time;
-                    I.Size := S.Size;
-                    DataFile^.WriteRecord(I, Sizeof(I));
+                    if InitScan then begin
+                        FillChar(I.Name, Sizeof(I.Name), 0);
+                        I.Name := S.Name;
+                        I.Attr := S.Attr;
+                        I.Time := S.Time;
+                        I.Size := S.Size;
+                        DataFile^.WriteRecord(I, Sizeof(I));
+                    end;
                 end; {else it is our temp file, ignore it}
+                if PostScan then CompareScan(D, S);
                 FindNext(S);
             end;
-            FillChar(I, Sizeof(I), 0);
+            if InitScan then begin
+                FillChar(I, Sizeof(I), 0);
+                DataFile^.WriteRecord(I, Sizeof(I));
+            end;
+        end;
+        if InitScan then begin
             DataFile^.WriteRecord(I, Sizeof(I));
         end;
-        DataFile^.WriteRecord(I, Sizeof(I));
         TumblerDone;
-        { Write(ElapsedTicks(False), ' '); }
-        if ElapsedTicks(true) < 180 then
-            WriteLn(NLS('SCAN.DONEFAST'))
-        else
-            WriteLn(NLS('SCAN.DONE'));
         ScanStats(False);
     end;
 
@@ -249,7 +309,7 @@ program Package_Maker;
             AddToDo(ScanDrives[1] + DriveDelim + PathDelim, 0, $ff);
             Delete(ScanDrives, 1,1);
         end;
-        Scanning;
+        Scan;
         DataFile^.Close;
         CheckDataFileError;
     end;
