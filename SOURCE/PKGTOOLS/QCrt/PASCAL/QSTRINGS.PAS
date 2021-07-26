@@ -138,6 +138,11 @@ procedure SetLength(var S; NewLen : byte);
 
 procedure HexDump(const D; L : word);
 
+function OnlyAlpha(S : String) : string;
+function OnlyAlphaNum(S : String) : string;
+function OnlyChars(S : String; Allowed : String) : string;
+function NotChars(S : String; Allowed : String) : string;
+
 implementation
 
 {$L QSTRINGS.OBJ}
@@ -1051,6 +1056,65 @@ begin
 
     end;
     if I mod $10 <> 0 then WriteLn;
+end;
+
+function OnlyAlpha(S : String) : string;
+var
+    I : integer;
+begin
+    I := 1;
+    while I <= Length(S) do begin
+        if ((S[I] >= 'a') and (S[I] <= 'z')) or
+        ((S[I] >= 'A') and (S[I] <= 'Z')) then
+            Inc(I)
+        else
+            Delete(S,I,1);
+    end;
+    OnlyAlpha := S;
+end;
+
+function OnlyAlphaNum(S : String) : string;
+var
+    I : integer;
+begin
+    I := 1;
+    while I <= Length(S) do begin
+        if ((S[I] >= 'a') and (S[I] <= 'z')) or
+        ((S[I] >= 'A') and (S[I] <= 'Z')) or
+        ((S[I] >= '0') and (S[I] <= '9')) then
+            Inc(I)
+        else
+            Delete(S,I,1);
+    end;
+    OnlyAlphaNum := S;
+end;
+
+function OnlyChars(S : String; Allowed : String) : string;
+var
+    I : integer;
+begin
+    I := 1;
+    while I <= Length(S) do begin
+        if (Pos(S[I], Allowed) > 0) then
+            Inc(I)
+        else
+            Delete(S,I,1);
+    end;
+    OnlyChars := S;
+end;
+
+function NotChars(S : String; Allowed : String) : string;
+var
+    I : integer;
+begin
+    I := 1;
+    while I <= Length(S) do begin
+        if (Pos(S[I], Allowed) = 0) then
+            Inc(I)
+        else
+            Delete(S,I,1);
+    end;
+    NotChars := S;
 end;
 
 end.

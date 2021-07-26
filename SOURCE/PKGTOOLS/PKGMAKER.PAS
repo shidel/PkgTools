@@ -55,6 +55,8 @@ program Package_Maker;
         db 'LINE.TOOLONG=Error: Line #$ is too long',0
         db 'ERROR=Error ($)',0
         db 'ERROR.NUMBER=#$',0
+        db 'ERROR.NOPKG=package id/name not specified',0
+        db 'ERROR.BADNAME=cannot use $ for package id/name',0
         db 'ERROR.TEMP=TEMP environment variable not set',0
         db 'ERROR.2=file not found',0
         db 'ERROR.3=path not found',0
@@ -406,6 +408,11 @@ program Package_Maker;
         end;
 
         DoneScan := False;
+        if PostScan then begin
+            if PkgWildCard = '*' then WriteHalt(NLS('ERROR.NOPKG'),1);
+            if not ValidPkgName(PkgWildCard) then
+                WriteHalt(NLSstr('ERROR.BADNAME', PkgWildCard),1);
+        end;
         PerformScan;
         if DoneScan then CleanUp(False);
     end;

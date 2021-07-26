@@ -40,6 +40,8 @@ interface
       eventually. At present, it is not used for anything import. So, don't
       care about roll-overs and such pesky little things. }
 
+    function ValidPkgName(AID : String) : boolean;
+
 implementation
 
     var
@@ -228,5 +230,13 @@ implementation
         TumblePos := 0;
     end;
 
+    function ValidPkgName(AID : String) : boolean;
+    begin
+        ValidPkgName := False;
+        if (ExtensionOf(AID) <> '') and (ExtensionOf(AID) <> 'LSM') then Exit;
+        AID := BaseNameOf(AID);
+        if (AID <> OnlyAlphaNum(AID)) then exit;
+        ValidPkgName := (AID <> '');
+    end;
 
 end.

@@ -98,7 +98,8 @@ function DosVersion : word;
 
 function StdInReady : boolean;
 
-function CtrlCPressed : boolean; { Tested through BIOS not DOS }
+function CtrlCPressed : boolean; { Tested through BIOS not DOS, also dumps
+ next key-press from keyboard buffer }
 
 { Character I/O }
 {
