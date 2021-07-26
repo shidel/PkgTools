@@ -8,6 +8,13 @@ can obtain one at http://mozilla.org/MPL/2.0/.
 }
 program Package_Maker;
 
+    { At present, the LSM and MOD file sizes do not count towards byte totals
+      But, they should not make much of a difference anyhow. But, it could
+      always save the before and after sizes then add the difference onto
+      the total bytes. But, I don't think it needs that level of detail.
+      After all, we probable rounded it to the nearest KB or MB anyway. Also,
+      there are excluded from Total new and modified file counts as well. }
+
     uses PkgComn, QNLS, QDOS, QStrings, QFiles, QPkgLSM;
 
     type
@@ -265,8 +272,6 @@ program Package_Maker;
             LSTFile^.SeekEOF;
             CheckFileError(LSTFile);
         end;
-        Inc(NewFiles);
-        Inc(NewBytes, I.Size);
         LSTFile^.WriteLn(FileName);
         CheckFileError(LSTFile);
     end;
@@ -290,7 +295,6 @@ program Package_Maker;
             MODFile^.SeekEOF;
             CheckFileError(MODFile);
         end;
-        Inc(MODFiles);
         MODFile^.WriteLn(FileName);
         CheckFileError(MODFile);
     end;
@@ -456,6 +460,8 @@ program Package_Maker;
                 {AddToLST(D + I.Name);}
                 Inc(NewDirs)
             end else begin
+                Inc(NewFiles);
+                Inc(NewBytes, I.Size);
                 AddToLST(D + I.Name);
             end;
 
@@ -475,6 +481,7 @@ program Package_Maker;
                   WriteLn;
                   Write(NLSstr('IDX.MOD.FILE', D + I.Name), ' ');
             end;
+            Inc(MODFiles);
             AddToMOD(D + I.Name);
         end;
     end;
@@ -545,13 +552,16 @@ program Package_Maker;
 
     procedure AddFiles;
     var
-        S, P, F : String;
+        S, D, F : String;
     begin
         While OptPkgAdd <> '' do begin
             S := Trim(PullStr( '|', OptPkgAdd));
             if S = '' then continue;
             S := FileExpand(S);
-            WriteLn(S);
+            D := PathOf(S);
+            F := Copy(S, Length(D) + 1, Length(S));
+            WriteLn(S, '>', D, '>', F);
+
         end;
     end;
 
