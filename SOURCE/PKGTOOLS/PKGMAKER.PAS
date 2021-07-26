@@ -604,9 +604,9 @@ program Package_Maker;
             if Assigned(LSTFile) then LSTFile^.Close;
             if Assigned(MODFile) then MODFile^.Close;
             if LSMAppend or LSTAppend or MODAppend then
-                WriteLn(NSLstr('META.UPDATED', PkgWildCard))
+                WriteLn(NLSstr('META.UPDATED', PkgWildCard))
             else
-                WriteLn(NSLstr('META.MADE', PkgWildCard))
+                WriteLn(NLSstr('META.MADE', PkgWildCard))
         end;
 
     end;
