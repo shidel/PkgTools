@@ -128,8 +128,8 @@ program Package_Maker;
         db 'STATS.NOW=found $0 directories, $1 files, $2',0
         db 'STATS.NEW=found $1 new files and $2',0
 
-        db 'META.MADE=package $ metadata created'
-        db 'META.UPDATE=package $ metadata updated'
+        db 'META.MADE=package $ metadata created',0
+        db 'META.UPDATE=package $ metadata updated',0
 
         db 'IDX.NEW.FILE=New: $',0
         db 'IDX.NEW.DIR=New: $\',0
@@ -263,7 +263,8 @@ program Package_Maker;
                 TumblerDone;
                 WriteLn;
                 Write(NLSstr('FILE.APPEND', MODFileName), ' ');
-            end;
+            end else
+                AddToLST(MODFileName);
             MODFile :=New(PDiskFile, Create(nil));
             MODFile^.Assign(MODFileName);
             if MODAppend then
@@ -301,7 +302,7 @@ program Package_Maker;
             for I := Low(NewLSM) to High(NewLSM) do begin
                 S := ReplaceStr(NewLSM[I], '$NAME$', PkgWildCard, true);
                 S := ReplaceStr(S, '$TODAY$', Today, true);
-                WriteLn(S);
+                { WriteLn(S); }
                 LSMFile^.WriteLn(S);
                 CheckFileError(LSMFile);
             end;
