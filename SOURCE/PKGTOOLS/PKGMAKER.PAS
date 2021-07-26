@@ -41,6 +41,11 @@ program Package_Maker;
         NewFiles : LongInt = 0;
         NewDirs  : LongInt = 0;
         NewBytes : LongInt = 0;
+        DataStart : LongInt = 0;
+
+        OptIncDrvs : String = '';
+        OptKeepScan : boolean = false;
+        OptMetaOnly : boolean = false;
 
     procedure ProgramMessages; assembler;
     asm
@@ -58,6 +63,8 @@ program Package_Maker;
         db 'ERROR.NOPKG=package id/name not specified',0
         db 'ERROR.BADNAME=cannot use $ for package id/name',0
         db 'ERROR.TEMP=TEMP environment variable not set',0
+        db 'ERROR.NOINC=can only include drives on the initial scan',0
+        db 'ERROR.BADDRV=can not find or access drive $',0
         db 'ERROR.2=file not found',0
         db 'ERROR.3=path not found',0
 
@@ -214,7 +221,7 @@ program Package_Maker;
         if LastD <> D then begin
             CurD := '';
             DD := D;
-            DataFile^.SeekSOF;
+            DataFile^.Seek(DataStart);
             CheckDataFileError;
             repeat
                 TestBreak;
@@ -259,6 +266,8 @@ program Package_Maker;
         O : TDataItem;
     begin
         if not FetchData(D, I, O) then begin
+            WriteLn(D,I.NAME);
+            Halt(0);
             if (I.Attr and faDirectory = faDirectory) then
                 Inc(NewDirs)
             else begin
@@ -349,15 +358,37 @@ program Package_Maker;
     procedure PerformScan;
     var
         R : integer;
+        S : String;
     begin
         if InitScan then begin
             WriteLn(NLS('SCAN.INIT'));
             DataFile^.Rewrite;
+            CheckDataFileError;
+            DataFile^.SeekSOF;
+            CheckDataFileError;
+            DataFile^.PutString(ScanDrives);
+            CheckDataFileError;
+            DataFile^.PutString(PkgWildCard);
+            CheckDataFileError;
         end else begin
             WriteLn(NLS('SCAN.POST'));
             DataFile^.Reset;
+            CheckDataFileError;
+            DataFile^.SeekSOF;
+            CheckDataFileError;
+            ScanDrives:=DataFile^.GetString;
+            CheckDataFileError;
+            S := DataFile^.GetString;
+            CheckDataFileError;
+            if PkgWildCard = '*' then PkgWildCard := S;
         end;
         CheckDataFileError;
+        DataStart := DataFile^.FilePos;
+        if PostScan then begin
+            if PkgWildCard = '*' then WriteHalt(NLS('ERROR.NOPKG'),1);
+            if not ValidPkgName(PkgWildCard) then
+                WriteHalt(NLSstr('ERROR.BADNAME', PkgWildCard),1);
+        end;
         WriteLn(NLS('SCAN.WAIT'));
         while Length(ScanDrives) > 0 do begin
             AddToDo(ScanDrives[1] + DriveDelim + PathDelim, 0, $ff);
@@ -396,31 +427,54 @@ program Package_Maker;
             DoneScan := PostScan;
         end;
 
-        if ScanDrives = '' then begin
-            ScanDrives := DriveLetters;
+        if (OptIncDrvs <> '') and (Not InitScan) then
+            WriteHalt(NLS('ERROR.NOINC'), 1);
+
+        if OptIncDrvs = '*' then
+            ScanDrives := DriveLetters
+        else if OptIncDrvs <> '' then
+            ScanDrives := ScanDrives + UCase(OptIncDrvs);
+
+        if ScanDrives <> 'C' then begin
             I := 1;
             While I <= Length(ScanDrives) do begin
+                { delete everything except uppercase letters }
                 if (LCase(ScanDrives[I]) = ScanDrives[I]) then
+                    Delete(ScanDrives, I, 1)
+                { remove duplicate drive letters }
+                else if (Pos(ScanDrives[I], ScanDrives) < I) then
                     Delete(ScanDrives, I, 1)
                 else
                     Inc(I);
             end;
         end;
-
-        DoneScan := False;
-        if PostScan then begin
-            if PkgWildCard = '*' then WriteHalt(NLS('ERROR.NOPKG'),1);
-            if not ValidPkgName(PkgWildCard) then
-                WriteHalt(NLSstr('ERROR.BADNAME', PkgWildCard),1);
-        end;
+        if OptKeepScan then DoneScan := False;
         PerformScan;
         if DoneScan then CleanUp(False);
     end;
 
     function Options(Option : String; var NextParam : Integer) : boolean; far;
     begin
-        WriteLn('What?');
-        Options := False;
+        Options := True;
+        if Option = 'I' then begin
+            InitScan := True;
+            PostScan := False;
+            DoneScan := False;
+        end else if Option = 'S' then begin
+            InitScan := False;
+            PostScan := True;
+            DoneScan := True;
+        end else if Option = 'K' then begin
+            DoneScan := False;
+            OptKeepScan := True;
+        end else if Option = 'M' then begin
+            DoneScan := False;
+            OptKeepScan := True;
+        end else if Option = 'D' then begin
+            OptIncDrvs := OptIncDrvs + ParamStr(NextParam);
+            Inc(NextParam);
+        end else
+            Options := False;
     end;
 
 begin
