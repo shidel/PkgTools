@@ -53,6 +53,8 @@ program Package_Maker;
         OptKeepScan : boolean = false;
         OptMetaOnly : boolean = false;
         OptForced   : boolean = false;
+        OptPkgAdd   : String = '';
+        OptPkgDel   : String = '';
         LSMFileName : String = '';
         LSTFileName : String = '';
         MODFileName : String = '';
@@ -101,6 +103,7 @@ program Package_Maker;
         db 'ERROR.TEMP=TEMP environment variable not set',0
         db 'ERROR.NOINC=can only include drives on the initial scan',0
         db 'ERROR.BADDRV=can not find drive $, ignored',0
+        db 'ERROR.NOLST=package $ file list not found',0
         db 'ERROR.2=file not found',0
         db 'ERROR.3=path not found',0
         db 'FORCED=forced to continue',0
@@ -131,6 +134,9 @@ program Package_Maker;
 
         db 'META.MADE=package $ metadata created',0
         db 'META.UPDATE=package $ metadata updated',0
+
+        db 'PKG.ADD=add: $',0
+        db 'PKG.DEL=remove: $',0
 
         db 'IDX.NEW.FILE=New: $',0
         db 'IDX.NEW.DIR=New: $\',0
@@ -196,6 +202,12 @@ program Package_Maker;
             WriteLn(NLSstr('FILE.DEL', Datafile^.Name));
     end;
 
+    function NoScan : boolean;
+    begin
+        NoScan := OptMetaOnly or (OptPkgAdd <> '') or (OptPkgDel <> '');
+    end;
+
+
     procedure UpdateDirItem(APos : LongInt; S : String; Time:LongInt; Attr : byte);
     var
         D : TDataItem;
@@ -240,7 +252,7 @@ program Package_Maker;
         if not Assigned(LSTFile) then begin
             if LSTAppend then begin
                 TumblerDone;
-                WriteLn;
+                if not NoScan then WriteLn;
                 Write(NLSstr('FILE.APPEND', LSTFileName), ' ');
             end;
             LSTFile :=New(PDiskFile, Create(nil));
@@ -253,6 +265,8 @@ program Package_Maker;
             LSTFile^.SeekEOF;
             CheckFileError(LSTFile);
         end;
+        Inc(NewFiles);
+        Inc(NewBytes, I.Size);
         LSTFile^.WriteLn(FileName);
         CheckFileError(LSTFile);
     end;
@@ -276,6 +290,7 @@ program Package_Maker;
             MODFile^.SeekEOF;
             CheckFileError(MODFile);
         end;
+        Inc(MODFiles);
         MODFile^.WriteLn(FileName);
         CheckFileError(MODFile);
     end;
@@ -441,8 +456,6 @@ program Package_Maker;
                 {AddToLST(D + I.Name);}
                 Inc(NewDirs)
             end else begin
-                Inc(NewFiles);
-                Inc(NewBytes, I.Size);
                 AddToLST(D + I.Name);
             end;
 
@@ -461,7 +474,6 @@ program Package_Maker;
                   TumblerDone;
                   WriteLn;
                   Write(NLSstr('IDX.MOD.FILE', D + I.Name), ' ');
-                  Inc(ModFiles);
             end;
             AddToMOD(D + I.Name);
         end;
@@ -531,12 +543,28 @@ program Package_Maker;
         if PostScan then ScanStats(True);
     end;
 
+    procedure AddFiles;
+    var
+        S, P, F : String;
+    begin
+        While OptPkgAdd <> '' do begin
+            S := Trim(PullStr( '|', OptPkgAdd));
+            if S = '' then continue;
+            S := FileExpand(S);
+            WriteLn(S);
+        end;
+    end;
+
+    procedure DelFiles;
+    begin
+    end;
+
     procedure PerformScan;
     var
         R : integer;
         S : String;
     begin
-        if not OptMetaOnly then begin
+        if not NoScan then begin
             if InitScan then begin
                 if OptMetaOnly then WriteLn(NLS('SCAN.INIT'));
                 DataFile^.Rewrite;
@@ -562,7 +590,7 @@ program Package_Maker;
             CheckDataFileError;
             DataStart := DataFile^.FilePos;
         end;
-        if PostScan or OptMetaOnly then begin
+        if PostScan or NoScan then begin
             if PkgWildCard = '*' then WriteHalt(NLS('ERROR.NOPKG'),1);
             if not ValidPkgName(PkgWildCard) then
                 WriteHalt(NLSstr('ERROR.BADNAME', PkgWildCard),1);
@@ -574,7 +602,16 @@ program Package_Maker;
                 PkgWildCard + FileExtLST;
              MODFileName := TailDelim(GetENV('DOSDIR')) + 'PACKAGES' + PathDelim +
                 PkgWildCard + '.MOD';
-            if FileExists(LSMFileName) or FileExists(LSTFileName) or
+            if ((OptPkgAdd <> '') or (OptPkgDel <> '')) then begin
+                LSTAppend := FileExists(LSTFileName);
+                if not LSTAppend then begin
+                    WriteLn(NLSstr('ERROR.NOLST', PkgWildCard));
+                    if OptForced then
+                        WriteLn(NLSstr('FORCED', SwitchChar))
+                    else
+                        Halt(5);
+                end;
+            end else if FileExists(LSMFileName) or FileExists(LSTFileName) or
             FileExists(MODFileName) then begin
                 WriteLn(NLSstr('ERROR.EXISTS', PkgWildCard));
                 if PostScan or OptMetaOnly then begin
@@ -597,7 +634,7 @@ program Package_Maker;
                 end;
             end;
         end;
-        if not OptMetaOnly then begin
+        if not NoScan then begin
             WriteLn(NLS('SCAN.WAIT'));
             while Length(ScanDrives) > 0 do begin
                 AddToDo(ScanDrives[1] + DriveDelim + PathDelim, 0, $ff);
@@ -607,7 +644,10 @@ program Package_Maker;
             DataFile^.Close;
             CheckDataFileError;
         end;
-        if PostScan or OptMetaOnly then begin
+        if OptPkgAdd <> '' then AddFiles;
+        if OptPkgDel <> '' then DelFiles;
+
+        if PostScan or NoScan then begin
             CreateLSM;
             if Assigned(LSTFile) then LSTFile^.Close;
             if Assigned(MODFile) then MODFile^.Close;
@@ -694,6 +734,12 @@ program Package_Maker;
             OptForced := True;
         end else if Option = 'D' then begin
             OptIncDrvs := OptIncDrvs + ParamStr(NextParam);
+            Inc(NextParam);
+        end else if Option = 'A' then begin
+            OptPkgAdd := OptPkgAdd + '|' + ParamStr(NextParam);
+            Inc(NextParam);
+        end else if Option = 'R' then begin
+            OptPkgDel := OptPkgDel + '|' + ParamStr(NextParam);
             Inc(NextParam);
         end else
             Options := False;
