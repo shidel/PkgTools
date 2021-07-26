@@ -121,12 +121,13 @@ program Package_Maker;
         db 'SCAN.WAIT=This can take a while',0
         db 'SCAN.MISSING=Initial scan not found',0
         db 'SCAN.RUN=Scanning...',0
-        db 'SCAN.DONE=Done',0
+        db 'SCAN.DONE=Scan complete',0
         db 'SCAN.DONE.FAST=Or, not. Wow, that was quick. Done!',0
 
         db 'FILE.DEL=file $ deleted',0
         db 'STATS.NOW=found $0 directories, $1 files, $2',0
         db 'STATS.NEW=found $1 new files and $2',0
+        db 'STATS.MOD=found $0 modified files, see $1',0
 
         db 'META.MADE=package $ metadata created',0
         db 'META.UPDATE=package $ metadata updated',0
@@ -358,6 +359,12 @@ program Package_Maker;
             S := ReplaceStr(S, '$0', IntStr(TotalDirs), True);
             S := ReplaceStr(S, '$1', IntStr(TotalFiles), True);
             S := ReplaceStr(S, '$2', SizeStr(TotalBytes, True), True);
+            if ModFiles > 0 then begin
+                WriteLn(S);
+                S := NLS('STATS.MOD');
+                S := ReplaceStr(S, '$0', IntStr(ModFiles), True);
+                S := ReplaceStr(S, '$1', MODFileName, True);
+            end;
         end;
         WriteLn(S);
     end;
@@ -605,7 +612,7 @@ program Package_Maker;
             if Assigned(LSTFile) then LSTFile^.Close;
             if Assigned(MODFile) then MODFile^.Close;
             if LSMAppend or LSTAppend or MODAppend then
-                WriteLn(NLSstr('META.UPDATED', PkgWildCard))
+                WriteLn(NLSstr('META.UPDATE', PkgWildCard))
             else
                 WriteLn(NLSstr('META.MADE', PkgWildCard))
         end;
