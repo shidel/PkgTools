@@ -71,7 +71,7 @@ program Package_Maker;
         db 'MBYTE=$MB',0
 
         db 'SCAN.INIT=Performing initial scan',0
-        db 'SCAN.POST=Performing post install scan',0
+        db 'SCAN.POST=Performing secondary scan',0
         db 'SCAN.WAIT=This could take a while',0
         db 'SCAN.MISSING=Initial scan not found',0
         db 'SCAN.RUN=Scanning...',0

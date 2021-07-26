@@ -36,7 +36,7 @@ interface
 
     procedure Tumbler;
     procedure TumblerDone;
-    function ElapsedTicks(Reset : boolean) : LongInt; { Could use improvement,
+    function  ElapsedTicks(Reset : boolean) : LongInt; { Could use improvement,
       eventually. At present, it is not used for anything import. So, don't
       care about roll-overs and such pesky little things. }
 

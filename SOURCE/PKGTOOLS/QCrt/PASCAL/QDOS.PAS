@@ -255,8 +255,14 @@ asm
         MOV     AH, $01
         INT     $16
         JZ      @@1
+        { get keystroke to remove from buffer, can live without. But, in
+        long loops, if any other key is pressed, ctrl-c will not yet be seen }
+        XOR     AH, AH
+        INT     $16
+        { test keystroke }
         CMP     AL, $03
         JNE     @@1
+        { ctrl-c pressed }
         MOV     AL, TRUE
         JMP     @@2
     @@1:
