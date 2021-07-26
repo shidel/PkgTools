@@ -13,15 +13,17 @@ interface
 
     uses QDOS, QStrings, QNLS;
 
+    type
+        TCleanUpProc = procedure;
+        TCommandLineOption = function (Option : String; var NextParam : Integer) : boolean;
+
     const
         Version : String = 'alpha0';
         Tab : String = '    ';
         TabStop : word = 4;
         PkgWildCard : String = '*';
         TumblerRate : integer = 10;
-
-    type
-        TCommandLineOption = function (Option : String; var NextParam : Integer) : boolean;
+        CleanUpProc : TCleanUpProc = nil;
 
     procedure TestBreak;
     procedure DisplayVersion;
@@ -126,9 +128,16 @@ implementation
     end;
 
     procedure TestBreak;
+    var
+        HoldProc : TCleanUpProc;
     begin
         if CtrlCPressed then begin
             WriteLn('^C -- ', NLS('PROG.ABORT'));
+            if Assigned(CleanUpProc) then begin
+                HoldProc := CleanUpProc;
+                CleanUpProc := nil;
+                HoldProc;
+            end;
             Halt(1);
         end
     end;
