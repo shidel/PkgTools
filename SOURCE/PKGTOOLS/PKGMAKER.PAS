@@ -550,19 +550,65 @@ program Package_Maker;
         if PostScan then ScanStats(True);
     end;
 
+    procedure AddList(var List : PToDo; S : String);
+    var
+        P : PToDo;
+    begin
+        P := New(PToDo);
+        P^.Path := StrPtr(S);
+        P^.Next := List;
+        List := P;
+    end;
+
     procedure AddFiles;
     var
-        S, D, F : String;
+        S, D, F, T : String;
+        List, P : PTodo;
+        SR : TSearchRec;
     begin
+        T := NLS('PKG.ADD');
         While OptPkgAdd <> '' do begin
             S := Trim(PullStr( '|', OptPkgAdd));
             if S = '' then continue;
             S := FileExpand(S);
             D := PathOf(S);
             F := Copy(S, Length(D) + 1, Length(S));
-            WriteLn(S, '>', D, '>', F);
-
+            if D = '' then begin D := F; F := ''; end;
+            D := TailDelim(D);
+            if F = '' then F := '*';
+            { WriteLn(S, ' > ', D, ' + ', F); }
+            List := nil;
+            AddList(List, D);
+            { WriteLn; }
+            while Assigned(List) do begin
+                P := List;
+                List := P^.Next;
+                TestBreak;
+                FindFirst(PtrStr(P^.Path) + '*.*', faAnyfile, SR);
+                while DOSError = 0 do begin
+                    TestBreak;
+                    if (SR.Attr and faVolumeID = faVolumeID) or
+                    ((SR.Attr and faDirectory = faDirectory) and ((SR.Name = '.') or (SR.Name = '..'))) then  begin
+                        { ignore it }
+                    end else
+                    if MatchWildCard(F, UCase(SR.Name)) then begin
+                        if SR.Attr and faDirectory = faDirectory then begin
+                            AddList(List, TailDelim(PtrStr(P^.Path)+SR.Name));
+                            Inc(NewDirs);
+                        end else begin
+                            Inc(NewFiles);
+                            Inc(NewBytes, SR.Size);
+                            WriteLn(ReplaceStr(T, '$', PtrStr(P^.Path)+SR.Name, false));
+                        end;
+                    end;
+                    FindNext(SR);
+                end;
+                FreeStr(P^.Path);
+                Dispose(P);
+                F := '*'; { Sub dirs match all files/directories }
+            end;
         end;
+        ScanStats(True);
     end;
 
     procedure DelFiles;
