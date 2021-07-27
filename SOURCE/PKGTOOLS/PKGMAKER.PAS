@@ -103,21 +103,25 @@ program Package_Maker;
         db 'PROG.DESC=Package Utility',0
         db 'PROG.ABORT=aborted',0
         db 'MEM.USAGE=Memory Usage',0
-        db 'BAD.SWITCH=invalid switch $',0
-        db 'LINE.TOOLONG=Error: Line #$ is too long',0
         db 'ERROR=Error ($)',0
         db 'ERROR.NUMBER=#$',0
-        db 'ERROR.NOPKG=package id/name not specified',0
-        db 'ERROR.BADNAME=cannot use $ for package id/name',0
-        db 'ERROR.EXISTS=package $ metadata already exists',0
-        db 'ERROR.TEMP=TEMP environment variable not set',0
-        db 'ERROR.NOINC=can only include drives on the initial scan',0
-        db 'ERROR.BADDRV=can not find drive $, ignored',0
-        db 'ERROR.NOLST=package $ file list not found',0
         db 'ERROR.2=file not found',0
         db 'ERROR.3=path not found',0
         db 'ERROR.9=out of memory',0
-        db 'LOW.MEMORY=extremely low on free memory',0
+
+        db 'ERROR.BADOPT=invalid switch $',0
+        db 'ERROR.NOTEMP=TEMP environment variable not set',0
+        db 'ERROR.BADDRV=can not find drive $, ignored',0
+        db 'ERROR.LOWMEM=extremely low on free memory',0
+        db 'ERROR.LONGLN=Error: Line #$ is too long',0
+        db 'ERROR.ISULFN=probably LFN',0
+
+        db 'ERROR.NOPKG=package id/name not specified',0
+        db 'ERROR.BADNAME=cannot use $ for package id/name',0
+        db 'ERROR.EXISTS=package $ metadata already exists',0
+        db 'ERROR.NOINC=can only include drives on the initial scan',0
+        db 'ERROR.NOLST=package $ file list not found',0
+
         db 'FORCED=forced to continue',0
         db 'FILE.APPEND=appending original $',0
         db 'FILE.KEEP=keeping original $',0
@@ -265,7 +269,7 @@ program Package_Maker;
             end else if not LowWarn then begin
                 TumblerDone;
                 WriteLn;
-                Write(NLSstr('LOW.MEMORY', IntStr(MaxAvail)), ' ');
+                Write(NLSstr('ERROR.LOWMEM', IntStr(MaxAvail)), ' ');
                 LowWarn := true;
             end
         end else if MaxAvail > 30720 then
@@ -554,7 +558,9 @@ program Package_Maker;
                 TumblerDone;
                 WriteLn;
                 if (Length(D) < 4) then
-                    Write(NLSstr('ERROR.BADDRV', D))
+                    Write(NLSstr('ERROR.' + ErrBadDrv, D))
+                else if DOSError = 18 then
+                    Write(ErrorTxt(ErrIsULFN, D))
                 else
                     Write(ErrorMsg(DOSERROR, D));
                 Write(' ');
@@ -787,7 +793,7 @@ program Package_Maker;
         if DataFile^.Name = '' then begin
             S := GetENV('TEMP');
             if S = '' then S := GetENV('TMP');
-            if S = '' then WriteHalt(NLS('ERROR.TEMP'),3);
+            if S = '' then WriteHalt(NLS('ERROR.' + ErrNoTemp),3);
             S := TailDelim(S) + GetEXEBase + '.TMP';
             DataFile^.Assign(S);
         end;

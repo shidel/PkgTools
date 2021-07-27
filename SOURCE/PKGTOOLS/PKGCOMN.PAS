@@ -25,12 +25,21 @@ interface
         TumblerRate : integer = 10;
         CleanUpProc : TCleanUpProc = nil;
 
+     const
+        ErrBadOpt   = 'BADOPT';
+        ErrNoTemp   = 'NOTEMP';
+        ErrBadDrv   = 'BADDRV';
+        ErrLowMem   = 'LOWMEM';
+        ErrLnLen    = 'LONGLN';
+        ErrIsULFN   = 'ISULFN';
+
     procedure TestBreak;
     procedure DisplayVersion;
     procedure DisplayHelp;
     procedure ParseCommandLine(const OptionHandler : TCommandLineOption);
 
     function ErrorMsg(Err : integer; Data : String) : string;
+    function ErrorTxt(Err : String; Data : String) : string;
     function NLSPlural(AID :String; D :String; Plural : boolean) : String;
     function SizeStr(I : Longint; Human : boolean) : String;
 
@@ -70,18 +79,21 @@ implementation
         ElapsedTicks := X;
     end;
 
-    function ErrorMsg(Err : integer; Data : String) : string;
+    function ErrorTxt(Err : String; Data : String) : string;
     var
         R : String;
     begin
-        R := NLSstr('ERROR.' + IntStr(Err),IntStr(Err));
-        if R = '' then begin
-            R := NLSstr('ERROR.NUMBER',IntStr(Err));
-        end;
+        R := NLSstr('ERROR.' + Err, Err);
+        if R = '' then R := NLSstr('ERROR.NUMBER',Err);
         R := NLSStr('ERROR', R);
         if Data <> '' then
             R := Trim(R) + ', ' + DATA;
-        ErrorMsg := Trim(R);
+        ErrorTxt := Trim(R);
+    end;
+
+    function ErrorMsg(Err : integer; Data : String) : string;
+    begin
+        ErrorMsg := ErrorTxt(IntStr(Err), Data);
     end;
 
     procedure WriteHalt (Data : String; ExitCode : integer);
@@ -203,7 +215,9 @@ implementation
                 OptionHandler(Copy(Opt, 2, Length(Opt)),I) then begin
                     VersionToggle := True
                 end else begin
-                    WriteLn(NLSStr('BAD.SWITCH', OPT));
+                    H := NLSStr('ERROR.' + ErrBadOpt, OPT);
+                    if H = '' then H := NLSStr('BAD.SWITCH', OPT);
+                    WriteLn(H);
                     Halt(1)
                 end
             end else begin
