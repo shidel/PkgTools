@@ -45,6 +45,7 @@ program Package_Maker;
         LSMFile  : PABstractFile = nil;
         LSTFile  : PABstractFile = nil;
         MODFile  : PABstractFile = nil;
+        TMPFile  : PABstractFile = nil;
         ScanDrives : String = '';
         ScanMulti : boolean = false;
         ToDo     : PToDo = nil;
@@ -97,10 +98,10 @@ program Package_Maker;
     procedure ProgramMessages; assembler;
     asm
         db 'LANGUAGE=Built-in',0
-        db 'PROG.NAME=PkgUtil',0
+        db 'PROG.NAME=PkgMaker',0
         db 'PROG.VERSION=Version $',0
-        db 'PROG.TITLE=PkgUtil',0
-        db 'PROG.DESC=Package Utility',0
+        db 'PROG.TITLE=PkgMaker',0
+        db 'PROG.DESC=Package Creation Utility',0
         db 'PROG.ABORT=aborted',0
         db 'MEM.USAGE=Memory Usage',0
         db 'ERROR=Error ($)',0
@@ -109,6 +110,7 @@ program Package_Maker;
         db 'ERROR.3=path not found',0
         db 'ERROR.9=out of memory',0
 
+        db 'ERROR.DEFCFG=assuming default settings',0
         db 'ERROR.BADOPT=invalid switch $',0
         db 'ERROR.NOTEMP=TEMP environment variable not set',0
         db 'ERROR.BADDRV=can not find drive $, ignored',0
@@ -121,10 +123,13 @@ program Package_Maker;
         db 'ERROR.EXISTS=package $ metadata already exists',0
         db 'ERROR.NOINC=can only include drives on the initial scan',0
         db 'ERROR.NOLST=package $ file list not found',0
+        db 'ERROR.BADLSM=package $ metadata file needs edited',0
+        db 'ERROR.NOZIP=zip program not found',0
 
         db 'FORCED=forced to continue',0
         db 'FILE.APPEND=appending original $',0
         db 'FILE.KEEP=keeping original $',0
+        db 'FILE.PRUNE=pruning original $',0
 
         db 'HELP.0=no built-in help available',0
         db 'USAGE=Disk Usage',0
@@ -148,12 +153,17 @@ program Package_Maker;
         db 'STATS.NOW=found $0 directories, $1 files, $2',0
         db 'STATS.NEW=found $1 new files and $2',0
         db 'STATS.MOD=found $0 modified files, see $1',0
+        db 'STATS.DETACH=detached $ files',0
 
         db 'META.MADE=package $ metadata created',0
         db 'META.UPDATE=package $ metadata updated',0
 
+        db 'MODE.ADD=Add files to $ package',0
+        db 'MODE.DETACH=Detach files from $ package',0
+        db 'MODE.ZIP=Create zip archive of package $',0
+
         db 'PKG.ADD=add: $',0
-        db 'PKG.DEL=remove: $',0
+        db 'PKG.DETACH=detach: $',0
 
         db 'IDX.NEW.FILE=New: $',0
         db 'IDX.NEW.DIR=New: $\',0
@@ -174,21 +184,27 @@ program Package_Maker;
         end else begin
             if Assigned(LSMFile) then begin
                 LSMFile^.Close;
-                LSMFile^.Erase;
-                WriteLn;
-                Write(NLSstr('FILE.DEL', LSMFile^.Name));
+                if not LSMAppend then begin
+                    LSMFile^.Erase;
+                    WriteLn;
+                    Write(NLSstr('FILE.DEL', LSMFile^.Name));
+                end;
             end;
             if Assigned(LSTFile) then begin
                 LSTFile^.Close;
-                LSTFile^.Erase;
-                WriteLn;
-                Write(NLSstr('FILE.DEL', LSTFile^.Name));
+                if not LSTAppend then begin
+                    LSTFile^.Erase;
+                    WriteLn;
+                    Write(NLSstr('FILE.DEL', LSTFile^.Name));
+                end;
             end;
             if Assigned(MODFile) then begin
                 MODFile^.Close;
-                MODFile^.Erase;
-                WriteLn;
-                Write(NLSstr('FILE.DEL', MODFile^.Name));
+                if not MODAppend then begin
+                    MODFile^.Erase;
+                    WriteLn;
+                    Write(NLSstr('FILE.DEL', MODFile^.Name));
+                end;
             end;
         end;
     end;
@@ -485,13 +501,6 @@ program Package_Maker;
         if not FetchData(D, I, O) then begin
             { WriteLn(D,I.NAME);
             Halt(0); }
-            if Verbose then begin
-                TumblerDone;
-                WriteLn;
-                Write(NLSstr('IDX.NEW.' +
-                    WhichStr(I.Attr and faDirectory = faDirectory, 'FILE', 'DIR'),
-                    D + I.Name), ' ');
-            end;
             if (I.Attr and faDirectory = faDirectory) then begin
                 {AddToLST(D + I.Name);}
                 Inc(NewDirs)
@@ -499,6 +508,13 @@ program Package_Maker;
                 Inc(NewFiles);
                 Inc(NewBytes, I.Size);
                 AddToLST(D + I.Name);
+            end;
+            if Verbose then begin
+                TumblerDone;
+                WriteLn;
+                Write(NLSstr('IDX.NEW.' +
+                    WhichStr(I.Attr and faDirectory = faDirectory, 'FILE', 'DIR'),
+                    D + I.Name), ' ');
             end;
 
         end else if (I.Attr and faDirectory = faDirectory) and
@@ -512,13 +528,13 @@ program Package_Maker;
 
         end else if (I.Time <> O.Time) or (I.Attr <> O.Attr) or
         (I.Size <> O.Size) then begin
+            Inc(MODFiles);
+            AddToMOD(D + I.Name);
             if Verbose then begin
                   TumblerDone;
                   WriteLn;
                   Write(NLSstr('IDX.MOD.FILE', D + I.Name), ' ');
             end;
-            Inc(MODFiles);
-            AddToMOD(D + I.Name);
         end;
     end;
 
@@ -622,13 +638,15 @@ program Package_Maker;
 
     procedure AddFiles;
     var
-        S, D, F, T : String;
+        S, D, F, T, Pkgs : String;
         List, P : PTodo;
         SR : TSearchRec;
     begin
+        Write(NLSstr('MODE.ADD',PkgWildCard));
         T := NLS('PKG.ADD');
-        While OptPkgAdd <> '' do begin
-            S := Trim(PullStr( '|', OptPkgAdd));
+        Pkgs := OptPkgAdd;
+        While Pkgs <> '' do begin
+            S := Trim(PullStr( '|', Pkgs));
             if S = '' then continue;
             S := FileExpand(S);
             D := PathOf(S);
@@ -658,11 +676,11 @@ program Package_Maker;
                         end else begin
                             Inc(NewFiles);
                             Inc(NewBytes, SR.Size);
+                            AddToLST(PtrStr(P^.Path)+SR.Name);
                             if Verbose then begin
                                 WriteLn;
                                 Write(ReplaceStr(T, '$', PtrStr(P^.Path)+SR.Name, false));
                             end;
-                            AddToLST(PtrStr(P^.Path)+SR.Name);
                         end;
                     end;
                     FindNext(SR);
@@ -676,7 +694,51 @@ program Package_Maker;
     end;
 
     procedure DelFiles;
+    var
+        S, W, DS, Pkgs : String;
+        L, X:integer;
+        LenOK, Detach : boolean;
     begin
+        DS := NLS('PKG.DETACH');
+        Write(NLSstr('MODE.DETACH',PkgWildCard));
+        if not Assigned(LSTFile) then begin
+            LSTFile :=New(PDiskFile, Create(nil));
+            LSTFile^.Assign(LSTFileName);
+            LSTFile^.Reset;
+            CheckFileError(LSTFile);
+        end else
+            LSTAppend := True;
+        LSTFile^.SeekSOF;
+        CheckFileError(LSTFile);
+        X := 0;
+        L := 1;
+        while not LSTFile^.EOF do begin
+            TestBreak;
+            LenOK := LSTFile^.ReadLn(S, Sizeof(S) - 1);
+            CheckFileError(LSTFile);
+            if not LenOk then begin
+                WriteLn(NLSstr('ERROR.LONGLN', IntStr(L)));
+                UserTerminate;
+                WriteHalt(NLS('PROG.ABORT'), 1);
+            end;
+            S := UCase(Trim(S));
+            if S = '' then Continue;
+            Inc(L);
+            Pkgs := Ucase(OptPkgDel);
+            Detach := false;
+            While Pkgs <> '' do begin
+                W := Trim(PullStr( '|', Pkgs));
+                if W = '' then continue;
+                if MatchWildCard(W, S) then begin
+                    Detach := True;
+                    Break;
+                end;
+            end;
+            if Detach then begin
+                WriteLn;
+                Write(ReplaceStr(DS, '$', S, false));
+            end;
+        end;
     end;
 
     procedure PerformScan;
@@ -722,8 +784,10 @@ program Package_Maker;
                 PkgWildCard + FileExtLST;
              MODFileName := TailDelim(GetENV('DOSDIR')) + 'PACKAGES' + PathDelim +
                 PkgWildCard + '.MOD';
+            LSMAppend := FileExists(LSMFileName);
+            LSTAppend := FileExists(LSTFileName);
+            MODAppend := FileExists(MODFileName);
             if ((OptPkgAdd <> '') or (OptPkgDel <> '')) then begin
-                LSTAppend := FileExists(LSTFileName);
                 if not LSTAppend then begin
                     WriteLn(NLSstr('ERROR.NOLST', PkgWildCard));
                     if OptForced then
@@ -737,15 +801,12 @@ program Package_Maker;
                 if PostScan or OptMetaOnly then begin
                     if FileExists(LSMFileName) then begin
                         WriteLn(ErrorMsg(5, LSMFileName));
-                        LSMAppend := True;
                     end;
                     if FileExists(LSTFileName) then begin
                         WriteLn(ErrorMsg(5, LSTFileName));
-                        LSTAppend := True;
                     end;
                     if FileExists(MODFileName) then begin
                         WriteLn(ErrorMsg(5, MODFileName));
-                        MODAppend := True;
                     end;
                     if OptForced then
                         WriteLn(NLSstr('FORCED', SwitchChar))
@@ -767,10 +828,13 @@ program Package_Maker;
             CheckDataFileError;
         end;
         if OptPkgAdd <> '' then AddFiles;
-        if OptPkgDel <> '' then DelFiles;
+        if OptPkgDel <> '' then begin
+            if OptPkgAdd <> '' then WriteLn;
+            DelFiles;
+        end;
 
         if PostScan or NoScan then begin
-            CreateLSM;
+            if PostScan or OptMetaOnly then CreateLSM;
             if Assigned(LSTFile) then LSTFile^.Close;
             if Assigned(MODFile) then MODFile^.Close;
             if LSMAppend or LSTAppend or MODAppend then begin

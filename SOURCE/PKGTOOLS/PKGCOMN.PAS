@@ -209,6 +209,8 @@ implementation
             else if (Opt[1] = SwitchChar) then begin
                 if Opt = SwitchChar + 'NLS' then
                     Inc(I)
+                else if Opt = '//' then
+                    Inc(I)
                 else if Opt = SwitchChar + 'VER' then
                     VersionShow := True
                 else if Assigned(OptionHandler) and
