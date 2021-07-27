@@ -6,6 +6,8 @@ This project and related files are subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this file, You
 can obtain one at http://mozilla.org/MPL/2.0/.
 }
+
+{$R+,Q+,S+}
 program Package_Maker;
 
     { At present, the LSM and MOD file sizes do not count towards byte totals
@@ -44,6 +46,7 @@ program Package_Maker;
         LSTFile  : PABstractFile = nil;
         MODFile  : PABstractFile = nil;
         ScanDrives : String = '';
+        ScanMulti : boolean = false;
         ToDo     : PToDo = nil;
         TotalFiles : LongInt = 0;
         TotalDirs  : LongInt = 0;
@@ -131,6 +134,7 @@ program Package_Maker;
         db 'SCAN.WAIT=This can take a while',0
         db 'SCAN.MISSING=Initial scan not found',0
         db 'SCAN.RUN=Scanning...',0
+        db 'SCAN.DRIVE=Scanning $ ...',0
         db 'SCAN.DONE=Scan complete',0
         db 'SCAN.DONE.FAST=Or, not. Wow, that was quick. Done!',0
 
@@ -158,23 +162,27 @@ program Package_Maker;
             if Assigned(DataFile) then begin
                 DataFile^.Close;
                 DataFile^.Erase;
-                WriteLn(NLSstr('FILE.DEL', Datafile^.Name));
+                WriteLn;
+                Write(NLSstr('FILE.DEL', Datafile^.Name));
             end;
         end else begin
             if Assigned(LSMFile) then begin
                 LSMFile^.Close;
                 LSMFile^.Erase;
-                WriteLn(NLSstr('FILE.DEL', LSMFile^.Name));
+                WriteLn;
+                Write(NLSstr('FILE.DEL', LSMFile^.Name));
             end;
             if Assigned(LSTFile) then begin
                 LSTFile^.Close;
                 LSTFile^.Erase;
-                WriteLn(NLSstr('FILE.DEL', LSTFile^.Name));
+                WriteLn;
+                Write(NLSstr('FILE.DEL', LSTFile^.Name));
             end;
             if Assigned(MODFile) then begin
                 MODFile^.Close;
                 MODFile^.Erase;
-                WriteLn(NLSstr('FILE.DEL', MODFile^.Name));
+                WriteLn;
+                Write(NLSstr('FILE.DEL', MODFile^.Name));
             end;
         end;
     end;
@@ -186,6 +194,7 @@ program Package_Maker;
         if Assigned(F) then begin
             R := F^.IOResult;
             if R <> 0 then begin
+                WriteLn;
                 WriteLn(ErrorMsg(R, F^.Name));
                 UserTerminate;
                 Halt(R);
@@ -198,15 +207,16 @@ program Package_Maker;
         CheckFileError(DataFile);
     end;
 
-
     procedure CleanUp(ShowMsg : boolean);
     var
         F : File;
     begin
         if Not Assigned(DataFile) then exit;
         DataFile^.Erase;
-        if ShowMsg then
-            WriteLn(NLSstr('FILE.DEL', Datafile^.Name));
+        if ShowMsg then begin
+            WriteLn;
+            Write(NLSstr('FILE.DEL', Datafile^.Name));
+        end;
     end;
 
     function NoScan : boolean;
@@ -259,7 +269,8 @@ program Package_Maker;
         if not Assigned(LSTFile) then begin
             if LSTAppend then begin
                 TumblerDone;
-                if not NoScan then WriteLn;
+                { if not NoScan then }
+                WriteLn;
                 Write(NLSstr('FILE.APPEND', LSTFileName), ' ');
             end;
             LSTFile :=New(PDiskFile, Create(nil));
@@ -306,11 +317,12 @@ program Package_Maker;
         Year, Month, Day, DayOfWeek: Word;
     begin
         if LSMAppend then begin
-            WriteLn(NLSstr('FILE.KEEP', LSMFileName));
+            WriteLn;
+            Write(NLSstr('FILE.KEEP', LSMFileName));
             Exit;
         end;
         AddToLST(LSMFileName);
-        WriteLn;
+        { WriteLn; }
         if Not Assigned(LSMFile) then begin
             LSMFile :=New(PDiskFile, Create(nil));
             LSMFile^.Assign(LSMFileName);
@@ -355,7 +367,8 @@ program Package_Maker;
         XE, XF : LongInt;
     begin
         if New = false then begin
-            if (NewFiles <> 0) or (NewDirs <> 0) then WriteLn;
+            {if (NewFiles <> 0) or (NewDirs <> 0) then}
+            WriteLn;
             XE := ElapsedTicks(true);
             if XE = 0 then
                 XF := 0
@@ -363,11 +376,11 @@ program Package_Maker;
                 XF := ((TotalFiles + TotalDirs) div XE) * 18;
             { Write('(', ElapsedTicks(False), '/', XE, '/', XF, ') '); }
             if XE < 90 then
-                WriteLn(NLS('SCAN.DONE.FAST'))
+                Write(NLS('SCAN.DONE.FAST'))
             else
-                WriteLn(NLS('SCAN.DONE'));
+                Write(NLS('SCAN.DONE'));
         end;
-
+        WriteLn;
         if New then begin
             S := NLS('STATS.NEW');
             S := ReplaceStr(S, '$0', IntStr(NewDirs), True);
@@ -385,7 +398,7 @@ program Package_Maker;
                 S := ReplaceStr(S, '$1', MODFileName, True);
             end;
         end;
-        WriteLn(S);
+        Write(S);
     end;
 
     function FetchData(D : String; I : TSearchRec; var O : TDataItem) : boolean;
@@ -494,27 +507,44 @@ program Package_Maker;
         IPath, IName : String;
         I : TDataItem;
     begin
-        Write(NLS('SCAN.RUN'));
         ElapsedTicks(true);
         IPath := TailDelim(PathOf(DataFile^.Name));
         IName := Copy(DataFile^.Name, Length(IPath) + 1, Sizeof(TFileNameString));
         while Assigned(ToDo) do begin
             TestBreak;
-            Tumbler;
 
             P := ToDo;
             ToDo := P^.Next;
             D := PtrStr(P^.Path);
             If InitScan then UpdateDirItem(P^.Data, D, P^.Time, P^.Attr);
+            FreeStr(P^.Path);
             Dispose(P);
 
-            FindFirst( D + '*.*', faAnyFile, S);
-            { WriteLn(Space(CountStr(PathDelim, D) * 2), BaseNameOf(NoTailDelim(D))); }
-            if (DOSError <> 0) and (Length(D) = 3) then begin
+            if {ScanMulti and} (Length(D) < 4) then begin
                 TumblerDone;
                 WriteLn;
-                Write(NLSstr('ERROR.BADDRV', Copy(D, 1, 2)), ' ');
+                Write(NLSstr('SCAN.DRIVE', D {Copy(D, 1,2)}), ' ');
             end;
+
+            Tumbler;
+
+            FindFirst( D + '*.*', faAnyFile, S);
+
+            { WriteLn(Space(CountStr(PathDelim, D) * 2), BaseNameOf(NoTailDelim(D))); }
+            if (DOSError <> 0) then begin
+                TumblerDone;
+                WriteLn;
+                if (Length(D) < 4) then
+                    Write(NLSstr('ERROR.BADDRV', D))
+                else
+                    Write(ErrorMsg(DOSERROR, D));
+                Write(' ');
+            end;
+
+            { TumblerDone;
+            WriteLn;
+            Write (MaxAvail, ',', MemAvail, ' > ', D);}
+
             while DOSError = 0 do begin
                 TestBreak;
                 if S.Attr and faDirectory = faDirectory then begin
@@ -537,6 +567,7 @@ program Package_Maker;
                 end; {else it is our temp file, ignore it}
                 FindNext(S);
             end;
+
             if InitScan then begin
                 FillChar(I, Sizeof(I), 0);
                 DataFile^.WriteRecord(I, Sizeof(I));
@@ -598,8 +629,10 @@ program Package_Maker;
                         end else begin
                             Inc(NewFiles);
                             Inc(NewBytes, SR.Size);
-                            if Verbose then
-                                WriteLn(ReplaceStr(T, '$', PtrStr(P^.Path)+SR.Name, false));
+                            if Verbose then begin
+                                WriteLn;
+                                Write(ReplaceStr(T, '$', PtrStr(P^.Path)+SR.Name, false));
+                            end;
                             AddToLST(PtrStr(P^.Path)+SR.Name);
                         end;
                     end;
@@ -624,7 +657,7 @@ program Package_Maker;
     begin
         if not NoScan then begin
             if InitScan then begin
-                if OptMetaOnly then WriteLn(NLS('SCAN.INIT'));
+                WriteLn(NLS('SCAN.INIT'));
                 DataFile^.Rewrite;
                 CheckDataFileError;
                 DataFile^.SeekSOF;
@@ -693,7 +726,9 @@ program Package_Maker;
             end;
         end;
         if not NoScan then begin
-            WriteLn(NLS('SCAN.WAIT'));
+            Write(NLS('SCAN.WAIT'));
+            ScanDrives := FlipStr(ScanDrives);
+            ScanMulti := Length(ScanDrives) > 1;
             while Length(ScanDrives) > 0 do begin
                 AddToDo(ScanDrives[1] + DriveDelim + PathDelim, 0, $ff);
                 Delete(ScanDrives, 1,1);
@@ -709,12 +744,15 @@ program Package_Maker;
             CreateLSM;
             if Assigned(LSTFile) then LSTFile^.Close;
             if Assigned(MODFile) then MODFile^.Close;
-            if LSMAppend or LSTAppend or MODAppend then
-                WriteLn(NLSstr('META.UPDATE', PkgWildCard))
-            else
-                WriteLn(NLSstr('META.MADE', PkgWildCard))
+            if LSMAppend or LSTAppend or MODAppend then begin
+                WriteLn;
+                Write(NLSstr('META.UPDATE', PkgWildCard));
+            end else begin
+                WriteLn;
+                Write(NLSstr('META.MADE', PkgWildCard));
+            end;
         end;
-
+        WriteLn;
     end;
 
     procedure PerformTask;

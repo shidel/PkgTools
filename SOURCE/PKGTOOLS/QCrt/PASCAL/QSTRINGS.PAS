@@ -143,6 +143,8 @@ function OnlyAlphaNum(S : String) : string;
 function OnlyChars(S : String; Allowed : String) : string;
 function NotChars(S : String; Allowed : String) : string;
 
+function FlipStr(S : String) : string;
+
 implementation
 
 {$L QSTRINGS.OBJ}
@@ -1117,4 +1119,17 @@ begin
     NotChars := S;
 end;
 
+function FlipStr(S : String) : string;
+var
+    I : integer;
+    C : Char;
+begin
+    for I := 1 to (Length(S) + 1) div 2 do begin
+        C := S[I];
+        S[I] := S[Length(S) - I + 1];
+        S[Length(S) - I + 1] := C;
+    end;
+    FlipStr:=S;
+
+end;
 end.
