@@ -598,7 +598,9 @@ program Package_Maker;
                         end else begin
                             Inc(NewFiles);
                             Inc(NewBytes, SR.Size);
-                            WriteLn(ReplaceStr(T, '$', PtrStr(P^.Path)+SR.Name, false));
+                            if Verbose then
+                                WriteLn(ReplaceStr(T, '$', PtrStr(P^.Path)+SR.Name, false));
+                            AddToLST(PtrStr(P^.Path)+SR.Name);
                         end;
                     end;
                     FindNext(SR);
