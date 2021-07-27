@@ -207,6 +207,13 @@ program Package_Maker;
                 end;
             end;
         end;
+        if Assigned(TMPFile) then begin
+            TMPFile^.Close;
+            TMPFile^.Erase;
+            WriteLn;
+            Write(NLSstr('FILE.DEL', TMPFile^.Name));
+        end;
+
     end;
 
     procedure CheckFileError(F : PAbstractFile);
@@ -218,6 +225,7 @@ program Package_Maker;
             if R <> 0 then begin
                 WriteLn;
                 WriteLn(ErrorMsg(R, F^.Name));
+                F^.Close; { We will probably close it twice. Don't matter! }
                 UserTerminate;
                 Halt(R);
             end;
@@ -710,6 +718,10 @@ program Package_Maker;
             LSTAppend := True;
         LSTFile^.SeekSOF;
         CheckFileError(LSTFile);
+        TMPFile :=New(PDiskFile, Create(nil));
+        TMPFile^.Assign(PathOf(LSTFileName) + BaseNameOf(LSTFileName) + '.TMP');
+        TMPFile^.Rewrite;
+        CheckFileError(TMPFile);
         X := 0;
         L := 1;
         while not LSTFile^.EOF do begin
@@ -737,8 +749,24 @@ program Package_Maker;
             if Detach then begin
                 WriteLn;
                 Write(ReplaceStr(DS, '$', S, false));
+            end else begin
+                TMPFile^.WriteLn(S);
+                CheckFileError(TMPFile);
             end;
         end;
+        TMPFile^.Close;
+        CheckFileError(TMPFile);
+        LSTFile^.Close;
+        CheckFileError(LSTFile);
+        LSTFile^.Rename(PathOf(LSTFileName) + BaseNameOf(LSTFileName) + '.BAK');
+        CheckFileError(LSTFile);
+        TMPFile^.Rename(LSTFileName);
+        CheckFileError(TMPFile);
+        LSTFile^.Erase;
+        Dispose(LSTFile, Destroy);
+        LSTFile := nil;
+        Dispose(TMPFile, Destroy);
+        TMPFile := nil;
     end;
 
     procedure PerformScan;
