@@ -7,7 +7,7 @@ License, v. 2.0. If a copy of the MPL was not distributed with this file, You
 can obtain one at http://mozilla.org/MPL/2.0/.
 }
 
-{$R+,Q+,S+}
+{$M 32678,102400,204800}
 program Package_Maker;
 
     { At present, the LSM and MOD file sizes do not count towards byte totals
@@ -116,6 +116,8 @@ program Package_Maker;
         db 'ERROR.NOLST=package $ file list not found',0
         db 'ERROR.2=file not found',0
         db 'ERROR.3=path not found',0
+        db 'ERROR.9=out of memory',0
+        db 'LOW.MEMORY=extremely low on free memory',0
         db 'FORCED=forced to continue',0
         db 'FILE.APPEND=appending original $',0
         db 'FILE.KEEP=keeping original $',0
@@ -248,9 +250,26 @@ program Package_Maker;
     end;
 
     procedure AddToDo(S : String; Time : LongInt; Attr : byte);
+    const
+        LowWarn : boolean = false;
     var
         P : PToDo;
     begin
+        if MaxAvail < 20480 then begin
+            if MaxAvail < 5120 then begin
+                TumblerDone;
+                WriteLn;
+                UserTerminate;
+                WriteLn;
+                WriteHalt(ErrorMsg(9,''),9);
+            end else if not LowWarn then begin
+                TumblerDone;
+                WriteLn;
+                Write(NLSstr('LOW.MEMORY', IntStr(MaxAvail)), ' ');
+                LowWarn := true;
+            end
+        end else if MaxAvail > 30720 then
+            LowWarn := false;
         S := TailDelim(S);
         P := New(PToDo);
         P^.Path := StrPtr(S);
@@ -541,9 +560,13 @@ program Package_Maker;
                 Write(' ');
             end;
 
-            { TumblerDone;
-            WriteLn;
-            Write (MaxAvail, ',', MemAvail, ' > ', D);}
+            {
+            if MaxAvail < 20480 then begin
+                TumblerDone;
+                WriteLn;
+                Write (MaxAvail, ',', MemAvail, ' > ', D);
+            end;
+            }
 
             while DOSError = 0 do begin
                 TestBreak;
