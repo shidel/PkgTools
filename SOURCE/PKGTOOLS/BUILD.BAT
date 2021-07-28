@@ -16,7 +16,7 @@ if not exist BIN\PKGINFO.EXE goto Done
 
 :DevBuild
 if not exist PKGMAKER.PAS goto NoDevBuild
-call tpc /B /OQCRT\PASCAL /IQCRT\PASCAL -UQCRT\PASCAL -EBIN PKGMAKER.PAS
+call tpc /M /OQCRT\PASCAL /IQCRT\PASCAL -UQCRT\PASCAL -EBIN PKGMAKER.PAS
 if not exist BIN\PKGMAKER.EXE goto Done
 
 :NoDevBuild

@@ -194,6 +194,8 @@ function FileExists ( AFileName : String ) : boolean;
 function DirExists ( AFileName : String ) : boolean;
 function Exists ( AFileName : String ) : boolean;
 
+function SearchPathSpec(AFileName : String) : String;
+
 function Dir(ADirName : String) : String;
 
 procedure PackTime(DateTime : TDateTime; var Value : LongInt);
@@ -1642,6 +1644,24 @@ begin
     NewDirList := New(PDirList, Create(AOwner));
 end;
 
+function SearchPathSpec(AFileName : String) : String;
+var
+    D, PS : String;
+    I : integer;
+begin
+    SearchPathSpec := '';
+    PS := GetENV('PATH');
+    while PS <> '' do begin
+        I := Pos(';', PS);
+        if I < 1 then I := Length(PS) + 1;
+        D := Trim(Copy(PS, 1, I - 1));
+        Delete(PS, 1, I);
+        if FileExists(TailDelim(D) + AFileName) then begin
+            SearchPathSpec := TailDelim(D) + AFileName;
+            Break;
+        end;
+    end;
+end;
 
 { initialization & finalization routines }
 

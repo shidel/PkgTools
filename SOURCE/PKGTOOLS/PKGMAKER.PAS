@@ -73,6 +73,7 @@ program Package_Maker;
         LSMAppend   : boolean = false;
         LSTAppend   : boolean = false;
         MODAppend   : boolean = false;
+        ZIPexe      : String = '';
 
     const
         NewLSM : array[1..18] of String =(
@@ -618,7 +619,7 @@ program Package_Maker;
                 end; {else it is our temp file, ignore it}
                 FindNext(S);
             end;
-
+            FindClose(S);
             if InitScan then begin
                 FillChar(I, Sizeof(I), 0);
                 DataFile^.WriteRecord(I, Sizeof(I));
@@ -691,6 +692,7 @@ program Package_Maker;
                     end;
                     FindNext(SR);
                 end;
+                FindCLose(SR);
                 FreeStr(P^.Path);
                 Dispose(P);
                 F := '*'; { Sub dirs match all files/directories }
@@ -769,6 +771,66 @@ program Package_Maker;
         TMPFile := nil;
     end;
 
+    procedure PrepareFileNames;
+    begin
+        if PostScan or NoScan then begin
+            if PkgWildCard = '*' then WriteHalt(NLS('ERROR.NOPKG'),1);
+            if not ValidPkgName(PkgWildCard) then
+                WriteHalt(NLSstr('ERROR.BADNAME', PkgWildCard),1);
+        end;
+        if (PkgWildCard <> '*') then begin
+             LSMFileName := TailDelim(GetENV('DOSDIR')) + 'APPINFO' + PathDelim +
+                PkgWildCard + FileExtLSM;
+             LSTFileName := TailDelim(GetENV('DOSDIR')) + 'PACKAGES' + PathDelim +
+                PkgWildCard + FileExtLST;
+             MODFileName := TailDelim(GetENV('DOSDIR')) + 'PACKAGES' + PathDelim +
+                PkgWildCard + '.MOD';
+            LSMAppend := FileExists(LSMFileName);
+            LSTAppend := FileExists(LSTFileName);
+            MODAppend := FileExists(MODFileName);
+            if ((OptPkgAdd <> '') or (OptPkgDel <> '') or OptZipIt) then begin
+                if not LSTAppend then begin
+                    WriteLn(NLSstr('ERROR.NOLST', PkgWildCard));
+                    if OptForced then
+                        WriteLn(NLSstr('FORCED', SwitchChar))
+                    else
+                        Halt(5);
+                end;
+            end else if FileExists(LSMFileName) or FileExists(LSTFileName) or
+            FileExists(MODFileName) then begin
+                WriteLn(NLSstr('ERROR.EXISTS', PkgWildCard));
+                if PostScan or OptMetaOnly then begin
+                    if FileExists(LSMFileName) then begin
+                        WriteLn(ErrorMsg(5, LSMFileName));
+                    end;
+                    if FileExists(LSTFileName) then begin
+                        WriteLn(ErrorMsg(5, LSTFileName));
+                    end;
+                    if FileExists(MODFileName) then begin
+                        WriteLn(ErrorMsg(5, MODFileName));
+                    end;
+                    if OptForced then
+                        WriteLn(NLSstr('FORCED', SwitchChar))
+                    else
+                        Halt(5);
+                end;
+            end;
+        end;
+    end;
+
+    procedure LocateZip;
+    begin
+        ZIPexe := SearchPathSpec('ZIP.EXE');
+        if ZIPexe = '' then WriteHalt(NLS('ERROR.NOZIP'), 2);
+    end;
+
+    procedure ZipPackage;
+    begin
+        LocateZip;
+        PrepareFileNames;
+        WriteLn(NLSstr('MODE.ZIP', PkgWildCard));
+   end;
+
     procedure PerformScan;
     var
         R : integer;
@@ -800,49 +862,7 @@ program Package_Maker;
             CheckDataFileError;
             DataStart := DataFile^.FilePos;
         end;
-        if PostScan or NoScan then begin
-            if PkgWildCard = '*' then WriteHalt(NLS('ERROR.NOPKG'),1);
-            if not ValidPkgName(PkgWildCard) then
-                WriteHalt(NLSstr('ERROR.BADNAME', PkgWildCard),1);
-        end;
-        if (PkgWildCard <> '*') then begin
-             LSMFileName := TailDelim(GetENV('DOSDIR')) + 'APPINFO' + PathDelim +
-                PkgWildCard + FileExtLSM;
-             LSTFileName := TailDelim(GetENV('DOSDIR')) + 'PACKAGES' + PathDelim +
-                PkgWildCard + FileExtLST;
-             MODFileName := TailDelim(GetENV('DOSDIR')) + 'PACKAGES' + PathDelim +
-                PkgWildCard + '.MOD';
-            LSMAppend := FileExists(LSMFileName);
-            LSTAppend := FileExists(LSTFileName);
-            MODAppend := FileExists(MODFileName);
-            if ((OptPkgAdd <> '') or (OptPkgDel <> '')) then begin
-                if not LSTAppend then begin
-                    WriteLn(NLSstr('ERROR.NOLST', PkgWildCard));
-                    if OptForced then
-                        WriteLn(NLSstr('FORCED', SwitchChar))
-                    else
-                        Halt(5);
-                end;
-            end else if FileExists(LSMFileName) or FileExists(LSTFileName) or
-            FileExists(MODFileName) then begin
-                WriteLn(NLSstr('ERROR.EXISTS', PkgWildCard));
-                if PostScan or OptMetaOnly then begin
-                    if FileExists(LSMFileName) then begin
-                        WriteLn(ErrorMsg(5, LSMFileName));
-                    end;
-                    if FileExists(LSTFileName) then begin
-                        WriteLn(ErrorMsg(5, LSTFileName));
-                    end;
-                    if FileExists(MODFileName) then begin
-                        WriteLn(ErrorMsg(5, MODFileName));
-                    end;
-                    if OptForced then
-                        WriteLn(NLSstr('FORCED', SwitchChar))
-                    else
-                        Halt(5);
-                end;
-            end;
-        end;
+        PrepareFileNames;
         if not NoScan then begin
             Write(NLS('SCAN.WAIT'));
             ScanDrives := FlipStr(ScanDrives);
