@@ -66,6 +66,7 @@ program Package_Maker;
         OptForced   : boolean = false;
         OptPkgAdd   : String = '';
         OptPkgDel   : String = '';
+        OptZipIt    : boolean = false;
         LSMFileName : String = '';
         LSTFileName : String = '';
         MODFileName : String = '';
@@ -213,7 +214,6 @@ program Package_Maker;
             WriteLn;
             Write(NLSstr('FILE.DEL', TMPFile^.Name));
         end;
-
     end;
 
     procedure CheckFileError(F : PAbstractFile);
@@ -251,9 +251,8 @@ program Package_Maker;
 
     function NoScan : boolean;
     begin
-        NoScan := OptMetaOnly or (OptPkgAdd <> '') or (OptPkgDel <> '');
+        NoScan := OptZipIt or OptMetaOnly or (OptPkgAdd <> '') or (OptPkgDel <> '');
     end;
-
 
     procedure UpdateDirItem(APos : LongInt; S : String; Time:LongInt; Attr : byte);
     var
@@ -387,7 +386,6 @@ program Package_Maker;
             end;
             LSMFile^.Close;
         end
-
     end;
 
     function CountStr(SubStr, Str : String) : integer;
@@ -714,6 +712,8 @@ program Package_Maker;
             LSTFile^.Assign(LSTFileName);
             LSTFile^.Reset;
             CheckFileError(LSTFile);
+            WriteLn;
+            Write(NLSstr('FILE.PRUNE', LSTFileName), ' ');
         end else
             LSTAppend := True;
         LSTFile^.SeekSOF;
@@ -894,7 +894,7 @@ program Package_Maker;
             WriteHalt(ErrorMsg(3, PathOf(DataFile^.Name)) , 3);
 
         { Scan type not specified, autodetect}
-        if InitScan or PostScan = False then begin
+        if (InitScan or PostScan) and (not OptZipIt) = False then begin
             if DoneScan then begin
                 CleanUp(True);
                 Halt(0);
@@ -926,14 +926,19 @@ program Package_Maker;
             end;
         end;
         if OptKeepScan then DoneScan := False;
-        PerformScan;
+        if OptZipIt then
+            ZipPackage
+        else
+            PerformScan;
         if DoneScan then CleanUp(False);
     end;
 
     function Options(Option : String; var NextParam : Integer) : boolean; far;
     begin
         Options := True;
-        if Option = 'I' then begin
+        if Option = 'Z' then begin
+            OptZipIt := True;
+        end else if Option = 'I' then begin
             InitScan := True;
             PostScan := False;
             DoneScan := False;
