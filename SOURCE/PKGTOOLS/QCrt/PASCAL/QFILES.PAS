@@ -785,7 +785,7 @@ function TAbstractFile.Read ( const AStr; AMax : word ) : Boolean;
     var
       P, T : ^String;
       Max, Count : word;
-      I : integer;
+      I, X : integer;
       L : LongInt;
     begin
        Read := False;
@@ -799,20 +799,22 @@ function TAbstractFile.Read ( const AStr; AMax : word ) : Boolean;
 			if (Flags and flError <> flError) then
 				begin
 					Buf[0] := Count;
-					I := Pos(#$0A#$0D, T^);
+					I := Pos(#$0D#$0A, T^);
+					{ System.WriteLn('(',I, '/', COUNT, ')'); }
 					if (I > 0) then begin
 						Buf[0] := I - 1;
 						Seek(L + I + 1);
 						Read := True;
-		   			end else if not StrictLines then begin
-                        I := Pos(#$0D, T^);
-                        if (I > 0) then begin
-                            Buf[0] := I - 1;
-                            Seek(L + I);
+		   			end;
+		   			if not StrictLines then begin
+                        X := Pos(#$0D, T^);
+                        if (X > 0) and (X < I) then begin
+                            Buf[0] := X - 1;
+                            Seek(L + X);
     						Read := True;
                         end;
                         I := Pos(#$0A, T^);
-                        if (I > 0) then begin
+                        if (I > 0) and (I < X) then begin
                             Buf[0] := I - 1;
                             Seek(L + I);
     						Read := True;

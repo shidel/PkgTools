@@ -24,6 +24,7 @@ interface
         PkgWildCard : String = '*';
         TumblerRate : integer = 10;
         CleanUpProc : TCleanUpProc = nil;
+        IsOutCON : boolean = true;
 
      const
         ErrBadOpt   = 'BADOPT';
@@ -236,6 +237,7 @@ implementation
 
     procedure Tumbler;
     begin
+        if not IsOutCON then exit;
         if LastTick = TimerTick then Exit;
         LastTick := TimerTick;
         Inc(LastCount);
@@ -270,4 +272,6 @@ implementation
         end;
     end;
 
+begin
+    IsOutCON := not IsRedirectedOutput;
 end.

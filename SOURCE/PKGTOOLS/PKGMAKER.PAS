@@ -74,6 +74,7 @@ program Package_Maker;
         LSTAppend   : boolean = false;
         MODAppend   : boolean = false;
         ZIPexe      : String = '';
+        PkgSettings : String = 'FDNPKG.CFG';
 
     const
         NewLSM : array[1..18] of String =(
@@ -824,12 +825,72 @@ program Package_Maker;
         if ZIPexe = '' then WriteHalt(NLS('ERROR.NOZIP'), 2);
     end;
 
+    function CopyProgress(APercent : integer) : boolean; far;
+    begin
+        CopyProgress := true;
+        if (not IsOutCON) then begin
+            if (APercent = 100) then Write('100%');
+            Exit;
+        end;
+        Write(ChrStr(#8, 4), LSpace(IntStr(APercent), 3), '%');
+    end;
+
+    function GetPkgSettings : boolean;
+    var
+        FN, S : String;
+        LenOK : boolean;
+        FM, L : word;
+    begin
+        FN := GetENV(PkgSettings);
+        if FN = '' then begin
+            FN := GetENV('DOSDIR');
+            if FN <> '' then
+                FN := TailDelim(FN) + 'BIN' + PathDelim + PkgSettings;
+        end;
+        FM := FileMode;
+        GetPkgSettings := false;
+        if not FileExists(FN) then begin
+            WriteLn(ErrorMsg(2, FN));
+            WriteLn(NLS('ERROR.DEFCFG'));
+        end;
+        FileMode := 0;
+        MODFile := new(PDiskFile, Create(nil));
+        MODFile^.Assign(FN);
+        L := 0;
+        MODFile^.Reset;
+        if MODFile^.Result = 0 then
+            while (not MODFile^.EOF) do begin
+                LenOk := MODFile^.ReadLn(S, Sizeof(S) -1);
+                if MODFile^.Result <> 0 then Break;
+                Inc(L);
+                if Not LenOK then begin
+                    WriteLn(NLSStr('ERROR.LONGLN', IntStr(L)));
+                    Continue;
+                end;
+                S := Trim(S);
+                if (UCase(Copy(S, 1, 4)) <> 'DIR ') then Continue;
+                WriteLn(S);
+
+            end;
+        GetPkgSettings := (MODFile^.Result = 0);
+        MODFile^.Close;
+        Dispose(MODFile, Destroy);
+        FileMode := FM;
+    end;
+
     procedure ZipPackage;
+    var
+        Ret : Integer;
     begin
         LocateZip;
+        GetPkgSettings;
         PrepareFileNames;
         WriteLn(NLSstr('MODE.ZIP', PkgWildCard));
-   end;
+        Write('Copy progress', Space(5));
+        Ret := CopyFile(ParamStr(1), 'TESTFILE.TMP', nil, 65535, CopyProgress);
+        WriteLn;
+        WriteLn('Result: ', HexWord(Ret));
+    end;
 
     procedure PerformScan;
     var

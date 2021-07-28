@@ -87,6 +87,9 @@ type
     	Params : String;
     end;
 
+    TCopyProgressFunc = function (APercent : integer) : boolean;
+
+
 var
     PathDelim   : Char;
     DriveDelim  : Char;
@@ -215,6 +218,12 @@ function GetEnvParam(AIndex : integer): String;
 function DiskReady(ADrive : byte):boolean;
 
 function SizeOfFile(AFileName : String) : longint;
+
+function CopyFile(ASrc, ADest : String; ABuf : pointer; ABufSize : word; AProgress : TCopyProgressFunc) : integer;
+{ Simple File Copy, If ABuf is nil, one of ABufSize will be created and destroyed
+  automatically for copy. AProgress is only called when the percentage changes.
+  If the Progress function returns false, the copy process is aborted.
+  }
 
 type
     PDirItem = ^TDirItem;
@@ -440,6 +449,23 @@ asm
   MOV  ES:[DI + 2], DX
 end;
 
+procedure SetFTime(var F; Time : LongInt); assembler;
+asm
+  PUSH DS
+  MOV  AX, 5701h
+  LES  CX, Time
+  PUSH ES
+  POP  DX
+  LDS  BX, F
+  MOV  BX, DS:[BX]
+  INT  21h
+  POP  DS
+  JC   @1
+  XOR  AX, AX
+@1:
+  MOV  DosError, AX
+end;
+
 procedure GetFSize(var F; var Size : LongInt);
 var
     M : word;
@@ -458,23 +484,6 @@ begin
     if DOSError <> 0 then
         Size := -1;
     { FileMode := M; }
-end;
-
-procedure SetFTime(var F; Time : LongInt); assembler;
-asm
-  PUSH DS
-  MOV  AX, 5701h
-  LES  DI, Time
-  MOV  CX, ES:[DI]
-  MOV  DX, ES:[DI + 2]
-  LDS  BX, F
-  MOV  BX, DS:[BX]
-  INT  21h
-  POP  DS
-  JC   @1
-  XOR  AX, AX
-@1:
-  MOV  DosError, AX
 end;
 
 function IsRedirectedInput : boolean;
@@ -1662,6 +1671,101 @@ begin
         end;
     end;
 end;
+
+{$I-}
+function CopyFile(ASrc, ADest : String; ABuf : pointer; ABufSize : word; AProgress : TCopyProgressFunc) : integer;
+var
+    FI, FO : File;
+    FM : Word;
+    ErrorCode, FCount, FAttr : word;
+    DumpBuf : boolean;
+    FSize, FPos, FProg, LProg, XProg, FTime : LongInt;
+    function Error : boolean;
+    var
+        E : integer;
+    begin
+        E := IOResult;
+        if E <> 0 then ErrorCode := E;
+        Error := ErrorCode <> 0;
+    end;
+    procedure DoneCopy(ACode : integer);
+    begin
+        if DumpBuf then FreeMem(ABuf, ABufSize);
+        Close(FI);
+        Error;
+        Close(FO);
+        Error;
+        CopyFile := ACode;
+        FileMode := FM;
+    end;
+begin
+    FM := FileMode;
+    ErrorCode := 0;
+    DumpBuf := not Assigned(ABuf);
+    if  DumpBuf then begin
+        if MaxAvail < ABufSize then begin
+            CopyFile := 8; { out of memory }
+            Exit;
+        end;
+        GetMem(ABuf, ABufSize);
+    end;
+    Assign(FI, ASrc);
+    Assign(FO, ADest);
+    Rewrite(FO, 1);
+    if Error then begin
+        DoneCopy(ErrorCode);
+        Exit;
+    end;
+    FileMode := 0;
+    Reset(FI, 1);
+    if Error then begin
+        DoneCopy(ErrorCode);
+        Exit;
+    end;
+    FSize := FileSize(FI);
+    if Error then begin
+        DoneCopy(ErrorCode);
+        Exit;
+    end;
+    FPos := 0;
+    LProg := 0;
+    XProg := FSize div 100;
+    if XProg = 0 then XProg := 1;
+    if Assigned(AProgress) then
+        if not AProgress(0) then begin
+            DoneCopy(-1);
+            exit;
+        end;
+    while FPos < FSize do begin
+        BlockRead(FI, ABuf^, ABufSize, FCount);
+        if not Error then begin
+            BlockWrite(FO, ABuf^, FCount);
+        end;
+        if Error then begin
+            DoneCopy(ErrorCode);
+            exit;
+        end;
+        Inc(FPos, FCount);
+        if Assigned(AProgress) then begin
+            FProg := (FPos div XProg);
+            if (FProg <> LProg) then begin
+                if not AProgress(FProg) then begin
+                    DoneCopy(-1);
+                    exit;
+                end;
+                LProg := FProg;
+            end;
+        end;
+    end;
+    if Assigned(AProgress) and (LProg <> 100) then AProgress(100);
+    GetFAttr(FI, FAttr);
+    GetFTime(FI, FTime);
+    SetFTime(FO, FTime);
+    DoneCopy(0);
+    SetFAttr(FO, FAttr);
+end;
+{$I+}
+
 
 { initialization & finalization routines }
 
