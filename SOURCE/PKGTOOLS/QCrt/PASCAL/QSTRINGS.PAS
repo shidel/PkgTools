@@ -125,6 +125,8 @@ function PullStr(SubStr : String; var S : String) : String;
 not present the entire string is "Pulled". SubStr is not returned in
 the result. }
 function PullChars(Count : Integer; var S : String) : String;
+function PullWord(var Str : String) : String;
+{ Returns "FirstWord", removing it and trimming Str }
 
 function ReduceStr(S : String; Max : integer) : String;
 
@@ -1132,4 +1134,15 @@ begin
     FlipStr:=S;
 
 end;
+
+function PullWord(var Str : String) : String;
+var
+   S : String;
+begin
+    S := FirstWord(Str);
+    Delete(Str, 1, Length(S));
+    PullWord := Trim(S);
+    Str := Trim(Str);
+end;
+
 end.

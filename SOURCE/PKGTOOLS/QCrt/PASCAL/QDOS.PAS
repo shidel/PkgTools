@@ -187,10 +187,17 @@ function DriveLetters : string;
 { Expands a file or dir name to full path }
 function FileExpand(AFileName : String) : String;
 
+{ Expands %ENV% variables in a string }
+function ENVExpand(Str : String) : String;
+
 function FileExtension(AFileName : String) : String;
 
 { Returns 0, if the dir exists or was able to be created. Or non-zero error }
 function MakeDir ( ADir : String ) : integer;
+
+function DeleteFile(AFileName : String; Forced : boolean) : boolean;
+{ recursive delete all files and subdirectories }
+function DeleteDir(ADirName : String; Forced : boolean) : boolean;
 
 { Uses FindFirst to test if File/Dir Exists }
 function FileExists ( AFileName : String ) : boolean;
@@ -218,6 +225,7 @@ function GetEnvParam(AIndex : integer): String;
 function DiskReady(ADrive : byte):boolean;
 
 function SizeOfFile(AFileName : String) : longint;
+
 
 function CopyFile(ASrc, ADest : String; ABuf : pointer; ABufSize : word; AProgress : TCopyProgressFunc) : integer;
 { Simple File Copy, If ABuf is nil, one of ABufSize will be created and destroyed
@@ -281,7 +289,6 @@ asm
         MOV     AL, FALSE
     @@2:
 end;
-
 
 function DiskReady(ADrive : byte):boolean; assembler;
 { Technically, disk change is a BIOS function present starting 1/10/1986,
@@ -1194,7 +1201,7 @@ end else begin
             AFileName := S;
     end;
   end;
-FileExpand := AFileName;
+    FileExpand := AFileName;
 end;
 
 function Exists ( AFileName : String ) : boolean;
@@ -1766,6 +1773,127 @@ begin
 end;
 {$I+}
 
+function ENVExpand(Str : String) : String;
+var
+    S, T : String;
+    X : boolean;
+    P : integer;
+begin
+    S := '';
+    X := False;
+    T := '';
+    while true do begin
+        P := Pos('%', Str);
+        if P = 0 then begin
+            if X then
+                S := S + T + '%' + Str
+            else
+                S := S + Str;
+            Break;
+        end;
+        if X and (T<>'') then
+            S := S + T;
+        T := Copy(Str, 1, P - 1);
+        Delete(Str, 1, P);
+        if X then begin
+            if T = '' then
+                S := S + '%'
+            else
+                S := S + GetEnv(UCase(T));
+        end;
+        X := not X;
+    end;
+    ENVExpand := S;
+end;
+
+
+{$I-}
+function DeleteFile(AFileName : String; Forced : boolean) : boolean;
+var
+    F : File;
+    E, X : integer;
+begin
+    DeleteFile := False;
+    Assign(F, AFileName);
+    if Forced then begin
+        SetFAttr(F, 0);
+        { if DOSError <> 0 then Exit; }
+    end;
+    Erase(F);
+    DOSError := IOResult;
+{    if DosError <> 0 then WriteLn(AFileName, ':', DosError); }
+    DeleteFile := DOSError = 0;
+end;
+{$I+}
+{$I-}
+
+function DeleteDir(ADirName : String; Forced : boolean) : boolean;
+type
+    PDirStack = ^TDirStack;
+    TDirStack = record
+        SubDir : TFileNameString;
+        Next : PDirStack;
+    end;
+
+var
+    Search : TSearchRec;
+    F : File;
+    E : Integer;
+    P, T : PDirStack;
+
+
+begin
+    DeleteDir := False;
+    P := nil;
+    FindFirst(TailDelim(ADirName) + '*.*', faAnyfile, Search);
+    while DOSError = 0 do begin
+        if Search.Attr and faVolumeID = faVolumeID then begin
+            FindNext(Search);
+            continue;
+        end;
+        if Search.Attr and faDirectory = faDirectory then begin
+            if (Search.Name = '.') or (Search.Name = '..') then begin
+                FindNext(Search);
+                continue;
+            end;
+            if MaxAvail < Sizeof(TDirStack) * 10 then begin
+                DOSERROR := 8;
+                Break;
+            end;
+            T := New(PDirStack);
+            T^.Next := P;
+            T^.SubDir := Search.Name;
+            P := T;
+        end else begin
+            if not DeleteFile(TailDelim(ADirName) + Search.Name, Forced) then
+                break;
+        end;
+
+        FindNext(Search);
+    end;
+    E := DOSError;
+    FindClose(Search);
+    while Assigned(P) do begin
+        if not DeleteDir(TailDelim(ADirName) + P^.SubDir, Forced) then begin
+            if DOSError <> 0 then E := DosError;
+        end;
+        T := P^.Next;
+        Dispose(P);
+        P := T;
+    end;
+    if (E = 0) or (E = 18) then begin
+        if Forced then begin
+            Assign(F, NoTailDelim(ADirName));
+            SetFAttr(F, 0);
+        end;
+        RmDir(NoTailDelim(ADirName));
+        E := IOResult;
+    end;
+{    if E <> 0 then WriteLn(E, ',', ADirName); }
+    DOSError := E;
+    DeleteDir := (DOSError = 0);
+end;
+{$I+}
 
 { initialization & finalization routines }
 

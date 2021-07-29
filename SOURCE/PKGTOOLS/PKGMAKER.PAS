@@ -36,6 +36,13 @@ program Package_Maker;
                 faDirectory : ( First : LongInt );
         end;
 
+        PDirMap = ^TDirMap;
+        TDirMap = record
+            Path : String;
+            Name : String;
+            Next : PDirMap;
+        end;
+
     const
         InitScan : boolean = False;     { After options processed either      }
         PostScan : boolean = False;     { InitScan or PostScan will be true.  }
@@ -46,6 +53,7 @@ program Package_Maker;
         LSTFile  : PABstractFile = nil;
         MODFile  : PABstractFile = nil;
         TMPFile  : PABstractFile = nil;
+        TMPDir   : String = '';
         ScanDrives : String = '';
         ScanMulti : boolean = false;
         ToDo     : PToDo = nil;
@@ -75,6 +83,7 @@ program Package_Maker;
         MODAppend   : boolean = false;
         ZIPexe      : String = '';
         PkgSettings : String = 'FDNPKG.CFG';
+        DirMap      : PDirMap = nil;
 
     const
         NewLSM : array[1..18] of String =(
@@ -97,6 +106,33 @@ program Package_Maker;
         'Copying-policy: unknown',
         'End'
         );
+        DefaultMap : array [1..21] of record
+            Name : String[8];
+            Path : String[32];
+        end = (
+            (Name:'ARCHIVER'; Path:'C:\ARCHIVER'),
+            (Name:'BOOT'; Path:'C:\BOOT'),
+            (Name:'DEVEL'; Path:'C:\DEVEL'),
+            (Name:'DRIVERS'; Path:'%DOSDIR%\DRIVER'),
+            (Name:'DRIVERS'; Path:'%DOSDIR%\DRIVERS'),
+            (Name:'DRIVERS'; Path:'C:\DRIVER'),
+            (Name:'DRIVERS'; Path:'C:\DRIVERS'),
+            (Name:'EDIT'; Path:'C:\EDIT'),
+            (Name:'EMULATOR'; Path:'C:\EMULATOR'),
+            (Name:'GAMES'; Path:'C:\GAMES'),
+            (Name:'GUI'; Path:'C:\GUI'),
+            (Name:'LINKS'; Path:'%DOSDIR%\LINKS'),
+            (Name:'NETWORK'; Path:'C:\NET'),
+            (Name:'NETWORK'; Path:'C:\NETWORK'),
+            (Name:'NETWORK'; Path:'%DOSDIR%\NETWORK'),
+            (Name:'SOUND'; Path:'C:\SOUND'),
+            (Name:'SOURCE'; Path:'%DOSDIR%\SOURCE'),
+            (Name:'PROGS'; Path:'C:\'),
+            (Name:'UNIX'; Path:'C:\UNIX'),
+            (Name:'APPS'; Path:'C:\APPS'),
+            (Name:'UTIL'; Path:'C:\UTIL')
+        );
+
 
     procedure ProgramMessages; assembler;
     asm
@@ -178,7 +214,7 @@ program Package_Maker;
     procedure UserTerminate; far;
     begin
         if InitScan then begin
-            if Assigned(DataFile) then begin
+            if Assigned(DataFile) and FileExists(DataFile^.Name) then begin
                 DataFile^.Close;
                 DataFile^.Erase;
                 WriteLn;
@@ -356,6 +392,18 @@ program Package_Maker;
         end;
         MODFile^.WriteLn(FileName);
         CheckFileError(MODFile);
+    end;
+
+    procedure AddToDirMap(AName, APath : String);
+    var
+        DM : PDirMap;
+    begin
+        DM := New(PDirMap);
+        DM^.Next := DirMap;
+        DM^.Path := TailDelim(APath);
+        DM^.Name := NoTailDelim(AName);
+        DirMap := DM;
+        { WriteLn('MAP: ', APath, ' -> ', AName); }
     end;
 
     procedure CreateLSM;
@@ -733,8 +781,10 @@ program Package_Maker;
             CheckFileError(LSTFile);
             if not LenOk then begin
                 WriteLn(NLSstr('ERROR.LONGLN', IntStr(L)));
-                UserTerminate;
-                WriteHalt(NLS('PROG.ABORT'), 1);
+                if not OptForced then begin
+                    UserTerminate;
+                    WriteHalt(NLS('PROG.ABORT'), 1);
+                end;
             end;
             S := UCase(Trim(S));
             if S = '' then Continue;
@@ -837,28 +887,47 @@ program Package_Maker;
 
     function GetPkgSettings : boolean;
     var
-        FN, S : String;
-        LenOK : boolean;
+        FN, S, T : String;
+        LenOK, Save : boolean;
         FM, L : word;
+        P : PDirMap;
+        I : integer;
     begin
-        FN := GetENV(PkgSettings);
+        Save := False;
+        FN := GetENV( GetEXEBase + '.CFG' );
         if FN = '' then begin
             FN := GetENV('DOSDIR');
             if FN <> '' then
-                FN := TailDelim(FN) + 'BIN' + PathDelim + PkgSettings;
+                FN := TailDelim(FN) + 'BIN' + PathDelim + GetEXEBase + '.CFG'
+            else
+                WriteHalt(ErrorMsg(3, '%DOSDIR%'), 3);
+        end;
+        if Not FileExists(FN) then
+            FN := TailDelim(GetEXEPath) + GetEXEBase + '.CFG';
+        if Not FileExists(FN) then begin
+            Save := True;
+            FN := GetENV(PkgSettings);
+            if FN = '' then begin
+                FN := GetENV('DOSDIR');
+                if FN <> '' then
+                    FN := TailDelim(FN) + 'BIN' + PathDelim + PkgSettings
+                else
+                    WriteHalt(ErrorMsg(3, '%DOSDIR%'), 3);
+            end;
         end;
         FM := FileMode;
         GetPkgSettings := false;
         if not FileExists(FN) then begin
             WriteLn(ErrorMsg(2, FN));
             WriteLn(NLS('ERROR.DEFCFG'));
+            Save := True;
         end;
         FileMode := 0;
         MODFile := new(PDiskFile, Create(nil));
         MODFile^.Assign(FN);
         L := 0;
         MODFile^.Reset;
-        if MODFile^.Result = 0 then
+        if MODFile^.Result = 0 then begin
             while (not MODFile^.EOF) do begin
                 LenOk := MODFile^.ReadLn(S, Sizeof(S) -1);
                 if MODFile^.Result <> 0 then Break;
@@ -867,29 +936,152 @@ program Package_Maker;
                     WriteLn(NLSStr('ERROR.LONGLN', IntStr(L)));
                     Continue;
                 end;
-                S := Trim(S);
-                if (UCase(Copy(S, 1, 4)) <> 'DIR ') then Continue;
-                WriteLn(S);
-
+                T := PullWord(S);
+                if (UCase(T) <> 'DIR') then Continue;
+                T := UCase(PullWord(S));
+                S := ENVExpand(S);
+                AddToDirMap(T, S);
             end;
+        end else
+            for I := Low(DefaultMap) to High(DefaultMap) do
+                AddToDirMap(DefaultMap[I].Name, ENVExpand(DefaultMap[I].Path));
+        AddToDirMap('BIN', ENVExpand('%DOSDIR%\BIN'));
+        AddToDirMap('', ENVExpand('%DOSDIR%'));
+        if Save then begin
+          MODFile^.Close;
+
+          FN := TailDelim(GetEXEPath) + GetEXEBase + '.CFG';
+          MODFile^.Assign(FN);
+          MODFile^.Rewrite;
+          P := DirMap;
+          While Assigned(P) do begin
+            S := 'dir ' + RSpace(P^.NAME, 12) + ' ' + P^.Path;
+            MODFile^.WriteLn(S);
+            P := P^.Next;
+          end;
+        end;
+
         GetPkgSettings := (MODFile^.Result = 0);
+
         MODFile^.Close;
         Dispose(MODFile, Destroy);
         FileMode := FM;
     end;
 
+    function ReMapFile(APath : String) : String;
+    var
+        P : PDirMap;
+        S, X, T : String;
+        TL, SL : integer;
+    begin
+        S := '';
+        X := UCase(APath);
+        P := DirMap;
+        TL := 0;
+        SL := 0;
+        While Assigned(P) do begin
+            TL := Length(P^.Path);
+            if (Copy(X, 1, TL) = UCase(P^.Path)) then begin
+                T := P^.Name + Copy(X, TL, Length(X));
+                while (T<>'') and (T[1] = PathDelim) do
+                    Delete(T, 1,1);
+                T := TailDelim(TMPDir + PkgWildCard + '.PKG') + T;
+                if (TL > SL) or (SL = 0) or ((TL = SL) and (UCase(T) < UCase(S))) then begin
+                   {  WriteLn(T, ' ? ', S); }
+                    S := T;
+                    SL := TL;
+                end
+            end;
+            P := P^.Next;
+        end;
+        if S <> '' then begin
+            ReMapFile := S;
+        end else if (Copy(APath, 2,2) = ':' + PathDelim) and
+            (Copy(GetENV('DOSDIR'), 1,3) <> Copy(APath, 1,3)) then
+            ReMapFile := ReMapFile(Copy(GetENV('DOSDIR'), 1,3) + Copy(APath, 4,Length(APath)))
+        else
+            ReMapFile := 'FAILED';
+    end;
+
     procedure ZipPackage;
     var
+        L : word;
         Ret : Integer;
+        S, DF : String;
+        LenOk : boolean;
     begin
         LocateZip;
         GetPkgSettings;
         PrepareFileNames;
         WriteLn(NLSstr('MODE.ZIP', PkgWildCard));
-        Write('Copy progress', Space(5));
+        if not Assigned(LSTFile) then begin
+            LSTFile := New(PDiskFile, Create(nil));
+            LSTFile^.Assign(LSTFileName);
+            if LSTAppend then
+                LSTFile^.Reset
+            else
+                LSTFile^.Rewrite;
+            CheckFileError(LSTFile);
+        end;
+        if DirExists(ReMapFile(GetEnv('DOSDIR') + PathDelim)) then begin
+            WriteLn(ErrorMsg(5, ReMapFile(GetEnv('DOSDIR') + PathDelim)));
+            if not OptForced then begin
+                UserTerminate;
+                WriteHalt(NLS('PROG.ABORT'), 1);
+            end;
+        end;
+        L := 0;
+        LSTFile^.SeekSOF;
+        CheckFileError(LSTFile);
+        while not LSTFile^.EOF do begin
+            Inc(L);
+            LenOk := LSTFile^.ReadLn(S, Sizeof(S) -1);
+            if not LenOk then begin
+                WriteLn(NLSstr('ERROR.LONGLN', IntStr(L)));
+                if not OptForced then begin
+                    UserTerminate;
+                    WriteHalt(NLS('PROG.ABORT'), 1);
+                end;
+            end;
+            S := Trim(S);
+            if S = '' then Continue;
+            DF := ReMapFile(S);
+            if MakeDir(PathOf(DF)) <> 0 then begin
+                WriteLn(ErrorMsg(DOSERROR, PathOf(DF)));
+                UserTerminate;
+                WriteHalt(NLS('PROG.ABORT'), 1);
+            end;
+            if not FileExists(S) then begin
+                WriteLn(ErrorMsg(2, S));
+                if not OptForced then begin
+                    UserTerminate;
+                    WriteHalt(NLS('PROG.ABORT'), 1);
+                end;
+                Continue;
+            end;
+{            Write(S, ' -> ', DF); }
+            Write(S);
+            if IsOutCON then Write(Space(5));
+            Ret := CopyFile(S, DF, nil, 65535, CopyProgress);
+            if Ret <> 0 then begin
+                WriteLn;
+                WriteLn(ErrorMsg(RET, DF));
+                UserTerminate;
+                WriteHalt(NLS('PROG.ABORT'), 1);
+            end;
+            if IsOutCON then Write(ChrStr(#8, 5), Space(5), ChrStr(#8, 5));
+            WriteLn;
+        end;
+
+       {  Write('Copy progress', Space(5));
         Ret := CopyFile(ParamStr(1), 'TESTFILE.TMP', nil, 65535, CopyProgress);
         WriteLn;
-        WriteLn('Result: ', HexWord(Ret));
+        WriteLn('Result: ', HexWord(Ret)); }
+        UserTerminate;
+        if not DeleteDir(ReMapFile(GetEnv('DOSDIR') + PathDelim), True) then begin
+            WriteLn(ErrorMsg(DOSError, ReMapFile(GetEnv('DOSDIR') + PathDelim)));
+            Halt(1);
+        end;
     end;
 
     procedure PerformScan;
@@ -967,6 +1159,7 @@ program Package_Maker;
             S := GetENV('TEMP');
             if S = '' then S := GetENV('TMP');
             if S = '' then WriteHalt(NLS('ERROR.' + ErrNoTemp),3);
+            TMPDir := TailDelim(S);
             S := TailDelim(S) + GetEXEBase + '.TMP';
             DataFile^.Assign(S);
         end;
