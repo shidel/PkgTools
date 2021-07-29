@@ -7,7 +7,7 @@ License, v. 2.0. If a copy of the MPL was not distributed with this file, You
 can obtain one at http://mozilla.org/MPL/2.0/.
 }
 
-{$M 32678,102400,204800}
+{$M 16384,51200,102400}
 program Package_Maker;
 
     { At present, the LSM and MOD file sizes do not count towards byte totals
@@ -82,6 +82,7 @@ program Package_Maker;
         LSTAppend   : boolean = false;
         MODAppend   : boolean = false;
         ZIPexe      : String = '';
+        ZipOpts     : String = '-r -9 -S';
         PkgSettings : String = 'FDNPKG.CFG';
         DirMap      : PDirMap = nil;
 
@@ -1003,12 +1004,14 @@ program Package_Maker;
             ReMapFile := 'FAILED';
     end;
 
+    {$I-}
     procedure ZipPackage;
     var
         L : word;
-        Ret : Integer;
+        Ret, E : Integer;
         S, DF : String;
         LenOk : boolean;
+        CDir, ZDir : String;
     begin
         LocateZip;
         GetPkgSettings;
@@ -1023,8 +1026,8 @@ program Package_Maker;
                 LSTFile^.Rewrite;
             CheckFileError(LSTFile);
         end;
-        if DirExists(ReMapFile(GetEnv('DOSDIR') + PathDelim)) then begin
-            WriteLn(ErrorMsg(5, ReMapFile(GetEnv('DOSDIR') + PathDelim)));
+        if DirExists(TailDelim(GetEnv('DOSDIR'))) then begin
+            WriteLn(ErrorMsg(5, ReMapFile(TailDelim(GetEnv('DOSDIR')))));
             if not OptForced then begin
                 UserTerminate;
                 WriteHalt(NLS('PROG.ABORT'), 1);
@@ -1073,16 +1076,45 @@ program Package_Maker;
             WriteLn;
         end;
 
-       {  Write('Copy progress', Space(5));
-        Ret := CopyFile(ParamStr(1), 'TESTFILE.TMP', nil, 65535, CopyProgress);
-        WriteLn;
-        WriteLn('Result: ', HexWord(Ret)); }
+        GetDir(0, CDir);
+        ChDir(Copy(TMPDir,1,2));
+        Ret := IOResult;
+        GetDir(0, ZDir);
+        if Ret = 0 then begin
+            ChDir(ReMapFile(TailDelim(GetEnv('DOSDIR'))));
+            Ret := IOResult;
+            { MemStat; }
+            if Ret <> 0 then begin
+                WriteLn(ErrorMsg(Ret, ReMapFile(TailDelim(GetEnv('DOSDIR')))));
+            end else begin
+                if Copy(CDir, 1, 2) = Copy(ZDir, 1, 2) then
+                    S := TailDelim(CDir)
+                else
+                    S := Copy(CDir, 1, 2);
+                DOSError := 0;
+                S := ZipOpts + ' ' + S + PkgWildCard + '.zip *.*';
+                SwapIntVecs;
+                Exec(ZIPexe, S);
+                Ret := DOSError;
+                SwapIntVecs;
+            end;
+
+            ChDir(ZDir);
+            E := IOResult;
+            ChDir(CDir);
+            E := IOResult;
+        end;
+
+        if Ret <> 0 then
+            WriteLn(ErrorMsg(Ret, Copy(TMPDir,1,2)));
+
         UserTerminate;
-        if not DeleteDir(ReMapFile(GetEnv('DOSDIR') + PathDelim), True) then begin
-            WriteLn(ErrorMsg(DOSError, ReMapFile(GetEnv('DOSDIR') + PathDelim)));
+        if not DeleteDir(ReMapFile(TailDelim(GetEnv('DOSDIR'))), True) then begin
+            WriteLn(ErrorMsg(DOSError, ReMapFile(TailDelim(GetEnv('DOSDIR')))));
             Halt(1);
         end;
     end;
+    {$I+}
 
     procedure PerformScan;
     var

@@ -53,8 +53,46 @@ interface
       care about roll-overs and such pesky little things. }
 
     function ValidPkgName(var AID : String) : boolean;
+    procedure MemStat;
 
 implementation
+
+    var
+        OrgMemAvail : LongInt;
+        OrgMaxAvail : LongInt;
+
+    procedure MemStat;
+    begin
+        WriteLn('MemAvail: ', MemAvail);
+        WriteLn('MaxAvail: ', MaxAvail);
+        WriteLn('OrgMem:   ', OrgMemAvail);
+        WriteLn('OrgMAx:   ', OrgMaxAvail);
+        WriteLn('HeapPtr:  ', HexPtr(HeapPtr) );
+        WriteLn('HeapEnd:  ', HexPtr(HeapEnd) );
+    end;
+
+    procedure ShrinkHeap;
+    var
+        Size:Word;
+        ParentPSP : word;
+    begin
+        { OldHeapEnd:=HeapEnd; }
+        HeapEnd := HeapPtr;
+        Size:=(Ofs(HeapPtr^) shr 4) + 1;
+        Size:=Size + Seg(HeapPtr^) - PrefixSeg;
+        asm
+            push ES
+            mov  AH, $4A
+            mov  BX, Size
+            mov  ES, PrefixSeg
+            int  $21
+            pop  ES
+            jnc  @@Done
+            mov  Size, BX
+        @@Done:
+        end;
+    end;
+
 
     var
         TimerTick : LongInt absolute $0040:$006c;  { Timer tick counter }
@@ -274,4 +312,6 @@ implementation
 
 begin
     IsOutCON := not IsRedirectedOutput;
+    OrgMaxAvail := MaxAvail;
+    OrgMemAvail := MemAvail;
 end.

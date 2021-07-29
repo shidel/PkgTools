@@ -20,7 +20,8 @@ type
 	Str4    = String[4];
 	Str5    = String[5];
 	Str8    = String[8];
-	Str12    = String[8];
+	Str9    = String[9];
+	Str12   = String[12];
 	Str16   = String[16];
 	Str20   = String[20];
 	Str32   = String[32];
@@ -76,6 +77,7 @@ function HEXLong ( L : LongInt ) : Str8;
 function BINByte ( B : Byte ) : Str8;
 function BINWord ( W : Word ) : Str16;
 function BINLong ( L : LongInt ) : Str32;
+function HEXPtr (P : Pointer) : Str9;
 
 function BoolStr ( B : Boolean ) : Str5;
 { Returns True/False }
@@ -1143,6 +1145,11 @@ begin
     Delete(Str, 1, Length(S));
     PullWord := Trim(S);
     Str := Trim(Str);
+end;
+
+function HEXPtr (P : Pointer) : Str9;
+begin
+    HexPtr := HexWord(Seg(P^)) + ':' + HexWord(Ofs(P^));
 end;
 
 end.
