@@ -103,6 +103,9 @@ function StdInReady : boolean;
 
 function CtrlCPressed : boolean; { Tested through BIOS not DOS, also dumps
  next key-press from keyboard buffer }
+function WaitCtrlCPressed : boolean; { Like CtrlCPressed but does not return
+ until a key is pressed }
+
 
 { Character I/O }
 {
@@ -289,6 +292,28 @@ asm
         MOV     AL, FALSE
     @@2:
 end;
+
+function WaitCtrlCPressed : boolean; assembler;
+asm
+    @@0:
+        MOV     AH, $01
+        INT     $16
+        JZ      @@0
+        { get keystroke to remove from buffer, can live without. But, in
+        long loops, if any other key is pressed, ctrl-c will not yet be seen }
+        XOR     AH, AH
+        INT     $16
+        { test keystroke }
+        CMP     AL, $03
+        JNE     @@1
+        { ctrl-c pressed }
+        MOV     AL, TRUE
+        JMP     @@2
+    @@1:
+        MOV     AL, FALSE
+    @@2:
+end;
+
 
 function DiskReady(ADrive : byte):boolean; assembler;
 { Technically, disk change is a BIOS function present starting 1/10/1986,

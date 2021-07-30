@@ -97,6 +97,49 @@ const
         db 0
     end;
 
+    const
+        ScreenX : integer = 1;
+        ScreenY : integer = 1;
+
+    procedure DoNewLine(NL : boolean);
+    begin
+        ScreenX := 1;
+        Inc(ScreenY);
+        if ScreenY > 23 then begin
+            ScreenY := 1;
+            TestBreakWait;
+        end;
+        if NL then System.WriteLn;
+    end;
+
+    procedure Write(S : String);
+    var
+        T : String;
+        X : integer;
+    begin
+        if Not PagePause then
+            system.Write(S)
+        else
+        while S <> '' do begin
+            T := Copy(S, 1, 80 - ScreenX);
+            ScreenX := ScreenX + Length(T);
+            Delete(S, 1, Length(T));
+            System.Write(T);
+            if ScreenX >= 80 then DoNewLine(False);
+        end;
+
+    end;
+
+    procedure WriteLn(S : String);
+    begin
+        if Not PagePause then
+            system.WriteLn(S)
+        else begin
+            Write(S);
+            DoNewLine(True);
+        end;
+    end;
+
     function SearchMetaData(LSM : PPackageLSM) : boolean;
     begin
         if not Assigned(LSM) then
@@ -121,22 +164,22 @@ const
     begin
         if (AMissing = 0) then begin
             if ReportMissing then
-                Write(Indent, NLS('MISSING.NONE'));
+                Write(Indent + NLS('MISSING.NONE'));
         end else if (AFiles = 0) then
-            Write(Indent, NLS('MISSING.ALL'))
+            Write(Indent+ NLS('MISSING.ALL'))
         else
-            Write(Indent, ReplaceStr(
+            Write(Indent + ReplaceStr(
                 ReplaceStr(NLSPlural('MISSING.SOME', '$', AFiles <> 1), '$0', NumberStr(AMissing), True),
                 '$1', NumberStr(AFiles + AMissing), True));
 
         if ReportUsage then begin
             if (AMissing = 0) and (not ReportMissing) then begin
-                WriteLn(Indent, FilesStr(AFiles), ', ', SizeStr(ABytes, True))
+                WriteLn(Indent + FilesStr(AFiles) + ', ' + SizeStr(ABytes, True))
             end else if PkgMissing = 0 then
-                WriteLn(', ', FilesStr(AFiles), ', ', SizeStr(ABytes, True))
+                WriteLn(', ' + FilesStr(AFiles) + ', ' + SizeStr(ABytes, True))
             else
-                WriteLn(', ', SizeStr(ABytes, True));
-        end else if (AMissing <> 0) or (ReportMissing) then WriteLn;
+                WriteLn(', ' + SizeStr(ABytes, True));
+        end else if (AMissing <> 0) or (ReportMissing) then WriteLn('');
     end;
 
     function ListPackageFiles(APkg : String) : integer;
@@ -151,7 +194,7 @@ const
         function NWL : String;
         begin
             NWL := '';
-            if NWLState then WriteLn;
+            if NWLState then WriteLn('');
             NWLState := false;
         end;
     begin
@@ -183,19 +226,19 @@ const
             LenOK := FL.ReadLn(S, Sizeof(S) - 1);
             S := Trim(S);
             if FL.Result <> 0 then begin
-                WriteLn(NWL, Indent, ErrorMsg(FL.Result, TailDelim(PackageLSTPath) + APkg + FileExtLST));
+                WriteLn(NWL + Indent + ErrorMsg(FL.Result, TailDelim(PackageLSTPath) + APkg + FileExtLST));
                 break;
             end;
             if Trim(S) = '' then Continue;
             Inc(I);
             if Not LenOK then begin
-                WriteLn(NWL, Indent, NLSstr('LINE.TOOLONG', IntStr(I)));
+                WriteLn(NWL + Indent + NLSstr('LINE.TOOLONG', IntStr(I)));
                 Continue;
             end;
 
             Size := SizeOfFile(S {$IFDEF FAKELOST}+ 'x' {$ENDIF});
             if DOSError <> 0 then begin
-                if ReportMissing then WriteLn(NWL, Indent, ErrorMsg(DOSError, S));
+                if ReportMissing then WriteLn(NWL + Indent + ErrorMsg(DOSError, S));
                 Size := 0;
                 Inc(TotalMissing);
                 Inc(PkgMissing);
@@ -219,7 +262,7 @@ const
                 if Pos(';' + FileExtension(S) + ';', Execuatable) = 0 then
                     continue;
             end;
-            Write(NWL, Indent);
+            Write(NWL + Indent);
             if ReportUsage then Write(RSpace(SizeStr(Size, false), MS));
             WriteLn(S);
 {            if S = '' then Break; }
@@ -264,13 +307,13 @@ const
         if SearchMetaData(LSM) or (Err <> 0) then begin
             Inc(PkgShown);
             if Err <> 0 then
-                WriteLn(RSpace(BaseNameOf(Item^.Name), 9), '-> ', NLSStr('ERROR.NUMBER', IntStr(Err)))
+                WriteLn(RSpace(BaseNameOf(Item^.Name), 9) + '-> ' + NLSStr('ERROR.NUMBER', IntStr(Err)))
             else begin
                 T := LSM^.DataStr('title');
                 V := LSM^.DataStr('version');
                 if V <> '' then V := '(' + V + ')';
                 if (T <> '') and (V <> '') then V := #32 + V;
-                WriteLn(RSpace(BaseNameOf(Item^.Name), 9), ': ', T, V);
+                WriteLn(RSpace(BaseNameOf(Item^.Name), 9) + ': ' + T + V);
             end;
             if ListFiles > 0 then ListPackageFiles(BaseNameOf(Item^.Name));
         end;
@@ -308,13 +351,13 @@ const
             while (L < 79) and (Pos(P^[I + L - X], #32#13#10#0) = 0) do Inc(L);
             if (L = 79) and (P^[I] = #32) then X := 79;
             if X = 79 then begin
-                WriteLn;
+                WriteLn('');
                 X := TabStop + MetaFieldWidth;
                 { if X > 16 then begin
                     X := 16;
                     Write(Tab, Tab);
                 end else begin }
-                    Write(Tab, Space(MetaFieldWidth));
+                    Write(Tab + Space(MetaFieldWidth));
                 {end; }
                 if P^[I] = #32 then begin
                     Inc(I);
@@ -325,7 +368,7 @@ const
             Inc(I);
             Inc(X);
         end;
-        WriteLn;
+        WriteLn('');
     end;
 
     function DisplayPkgMetadata(AObject : PObject) : integer; far;
@@ -350,11 +393,11 @@ const
         Err := LSM^.ReadMetaData(BaseNameOf(Item^.Name));
         if SearchMetaData(LSM) or (Err <> 0) then begin
             Inc(PkgShown);
-            if (PkgShown > 1) then WriteLn;
+            if (PkgShown > 1) then WriteLn('');
             if Err <> 0 then
-                WriteLn(RSpace(BaseNameOf(Item^.Name), 9), '-> ', NLSStr('ERROR.NUMBER', IntStr(Err)))
+                WriteLn(RSpace(BaseNameOf(Item^.Name), 9)+ '-> '+ NLSStr('ERROR.NUMBER', IntStr(Err)))
             else begin
-                WriteLn(BaseNameOf(Item^.Name), ':');
+                WriteLn(BaseNameOf(Item^.Name)+ ':');
                 if DetailLevel = 1 then
                     L := UCase(ListMore)
                 else
@@ -383,7 +426,7 @@ const
                     end;
 
                     if R or Assigned(P) then begin
-                        Write(Tab, RSpace(NLS(PrefixLSM + M) + ':', MetaFieldWidth));
+                        Write(Tab+ RSpace(NLS(PrefixLSM + M) + ':', MetaFieldWidth));
                         if not Assigned(P) then
                             WriteLn(NLS(PrefixLSM + 'NA'))
                         else
@@ -448,7 +491,7 @@ const
                 WriteLn(NLSStr('PKG.NOTFOUND', PkgWildCard));
             if PkgTesting then  Halt(2);
         end else begin
-            WriteLn;
+            WriteLn('');
             if PkgShown > 1 then begin
                 Write(ReplaceStr(ReplaceStr(NLS('PACKAGES'),
                     '$0', NumberStr(PkgShown), True),

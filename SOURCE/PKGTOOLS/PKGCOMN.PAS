@@ -36,6 +36,7 @@ interface
         ErrIsULFN   = 'ISULFN';
 
     procedure TestBreak;
+    procedure TestBreakWait;
     procedure DisplayVersion;
     procedure DisplayHelp;
     procedure ParseCommandLine(const OptionHandler : TCommandLineOption);
@@ -194,6 +195,21 @@ implementation
         end
     end;
 
+    procedure TestBreakWait;
+    var
+        HoldProc : TCleanUpProc;
+    begin
+        if WaitCtrlCPressed then begin
+            WriteLn('^C -- ', NLS('PROG.ABORT'));
+            if Assigned(CleanUpProc) then begin
+                HoldProc := CleanUpProc;
+                CleanUpProc := nil;
+                HoldProc;
+            end;
+            Halt(1);
+        end
+    end;
+
     procedure DisplayVersion;
     begin
         WriteLn(NLS('PROG.TITLE'), ', ', NLSstr('PROG.VERSION', Version));
@@ -233,10 +249,12 @@ implementation
         for I := 1 to ParamCount do
             if ParamStr(I) = '//' then SwitchChar := '/';
         for I := 1 to ParamCount do begin
-            if (Opt = SwitchChar + 'P') or
-            (Opt = SwitchChar + 'P+') or (Opt = SwitchChar +  '+P') then begin
+            if (UCase(ParamStr(I)) = SwitchChar + 'P') or
+            (UCase(ParamStr(I)) = SwitchChar + 'P+') or
+            (UCase(ParamStr(I)) = SwitchChar +  '+P') then begin
                 PagePause := IsOutCON;
-            end else if (Opt = SwitchChar + 'P-') or (Opt = SwitchChar + '-P') then begin
+            end else if (UCase(ParamStr(I)) = SwitchChar + 'P-') or
+            (UCase(ParamStr(I)) = SwitchChar + '-P') then begin
                 PagePause := False;
             end;
         end;
