@@ -205,20 +205,21 @@ begin
     AWild := '*' + UCase(AWILD) + '*';
     repeat
         R := '';
-        while (Pos(PAsciiZ(PLang)^[I], #$3A#$00) < 1) do Inc(I);
-        while (PAsciiZ(PLang)^[I] = #$3A) do Inc(I);
-        while (Pos(PAsciiZ(PLang)^[I], #$0A#$0D#$00) < 1) do begin
+        while (Pos(PAsciiZ(PLang)^[I], #$3A#$00) < 1) and (I < PSize) do Inc(I);
+        while (PAsciiZ(PLang)^[I] = #$3A) and (I < PSize) do Inc(I);
+        while (Pos(PAsciiZ(PLang)^[I], #$0A#$0D#$00) < 1) and (I < PSize) do begin
             R := R + (PAsciiZ(PLang)^[I]);
             Inc(I);
         end;
-        if MatchWildCard(AWild, UCase(R)) then begin
+        if (R <> '') and MatchWildCard(AWild, UCase(R)) then begin
             SearchMetaWildLang:= True;
             Exit;
         end;
-        while (Pos(PAsciiZ(PLang)^[I], #$0A#$0D#$00) < 1) do Inc(I);
-        while (Pos(PAsciiZ(PLang)^[I], #$0A#$0D) > 0) do Inc(I);
+        while (Pos(PAsciiZ(PLang)^[I], #$0A#$0D#$00) < 1) and (I < PSize) do Inc(I);
+        while (Pos(PAsciiZ(PLang)^[I], #$0A#$0D) > 0) and (I < PSize) do Inc(I);
         { Inc(I); }
-    until I >= PSize - 2;
+
+    until (I >= PSize) or (PAsciiZ(PLang)^[I] = #0);
 end;
 
 function TPackageLSM.SearchMetaWild(AWild : String) : boolean;

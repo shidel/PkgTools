@@ -57,7 +57,59 @@ interface
     function ValidPkgName(var AID : String) : boolean;
     procedure MemStat;
 
+    procedure Write(S : String);
+    procedure WriteLn(S : String);
+
+
 implementation
+
+    const
+        ScreenX : integer = 1;
+        ScreenY : integer = 1;
+
+    procedure DoNewLine(NL : boolean);
+    var
+        S : String;
+    begin
+        ScreenX := 1;
+        Inc(ScreenY);
+        if NL then System.WriteLn;
+        if ScreenY > 24 then begin
+            ScreenY := 1;
+            S := NLS('PAUSED');
+            System.Write(S);
+            System.Write(ChrStr(#8, Length(S)) + SPace(Length(S)) + ChrStr(#8, Length(S)));
+            TestBreakWait;
+        end;
+    end;
+
+    procedure Write(S : String);
+    var
+        T : String;
+        X : integer;
+    begin
+        if Not PagePause then
+            system.Write(S)
+        else
+        while S <> '' do begin
+            T := Copy(S, 1, 80 - ScreenX);
+            ScreenX := ScreenX + Length(T);
+            Delete(S, 1, Length(T));
+            System.Write(T);
+            if ScreenX >= 80 then DoNewLine(False);
+        end;
+
+    end;
+
+    procedure WriteLn(S : String);
+    begin
+        if Not PagePause then
+            system.WriteLn(S)
+        else begin
+            Write(S);
+            DoNewLine(True);
+        end;
+    end;
 
     var
         OrgMemAvail : LongInt;
@@ -65,12 +117,12 @@ implementation
 
     procedure MemStat;
     begin
-        WriteLn('MemAvail: ', MemAvail);
-        WriteLn('MaxAvail: ', MaxAvail);
-        WriteLn('OrgMem:   ', OrgMemAvail);
-        WriteLn('OrgMAx:   ', OrgMaxAvail);
-        WriteLn('HeapPtr:  ', HexPtr(HeapPtr) );
-        WriteLn('HeapEnd:  ', HexPtr(HeapEnd) );
+        WriteLn('MemAvail: ' + IntStr(MemAvail));
+        WriteLn('MaxAvail: ' + IntStr(MaxAvail));
+        WriteLn('OrgMem:   ' + IntStr(OrgMemAvail));
+        WriteLn('OrgMAx:   ' + IntStr(OrgMaxAvail));
+        WriteLn('HeapPtr:  ' + HexPtr(HeapPtr) );
+        WriteLn('HeapEnd:  ' + HexPtr(HeapEnd) );
     end;
 
     procedure ShrinkHeap;
@@ -185,7 +237,7 @@ implementation
         HoldProc : TCleanUpProc;
     begin
         if CtrlCPressed then begin
-            WriteLn('^C -- ', NLS('PROG.ABORT'));
+            WriteLn('^C -- ' + NLS('PROG.ABORT'));
             if Assigned(CleanUpProc) then begin
                 HoldProc := CleanUpProc;
                 CleanUpProc := nil;
@@ -200,7 +252,7 @@ implementation
         HoldProc : TCleanUpProc;
     begin
         if WaitCtrlCPressed then begin
-            WriteLn('^C -- ', NLS('PROG.ABORT'));
+            WriteLn('^C -- ' + NLS('PROG.ABORT'));
             if Assigned(CleanUpProc) then begin
                 HoldProc := CleanUpProc;
                 CleanUpProc := nil;
@@ -212,9 +264,9 @@ implementation
 
     procedure DisplayVersion;
     begin
-        WriteLn(NLS('PROG.TITLE'), ', ', NLSstr('PROG.VERSION', Version));
+        WriteLn(NLS('PROG.TITLE') + ', ' + NLSstr('PROG.VERSION', Version));
         WriteLn(NLS('PROG.DESC'));
-        WriteLn;
+        WriteLn('');
     end;
 
     procedure DisplayHelp;
@@ -234,7 +286,7 @@ implementation
             W := GetNLS('HELP.' + IntStr(I), S);
             S := ReplaceStr(S, '$', SwitchChar, True);
         end;
-        WriteLn;
+        WriteLn('');
         Halt(0);
     end;
 

@@ -94,50 +94,10 @@ const
         db 'MBYTE=$MB',0
         db 'PACKAGES=$0 of $1 packages shown',0
 
+        db 'PAUSED=press a key to continue...',0
+        db 'GBYTE=$GB',0
+        db 'OVERBYTE=>$GB',0
         db 0
-    end;
-
-    const
-        ScreenX : integer = 1;
-        ScreenY : integer = 1;
-
-    procedure DoNewLine(NL : boolean);
-    begin
-        ScreenX := 1;
-        Inc(ScreenY);
-        if ScreenY > 23 then begin
-            ScreenY := 1;
-            TestBreakWait;
-        end;
-        if NL then System.WriteLn;
-    end;
-
-    procedure Write(S : String);
-    var
-        T : String;
-        X : integer;
-    begin
-        if Not PagePause then
-            system.Write(S)
-        else
-        while S <> '' do begin
-            T := Copy(S, 1, 80 - ScreenX);
-            ScreenX := ScreenX + Length(T);
-            Delete(S, 1, Length(T));
-            System.Write(T);
-            if ScreenX >= 80 then DoNewLine(False);
-        end;
-
-    end;
-
-    procedure WriteLn(S : String);
-    begin
-        if Not PagePause then
-            system.WriteLn(S)
-        else begin
-            Write(S);
-            DoNewLine(True);
-        end;
     end;
 
     function SearchMetaData(LSM : PPackageLSM) : boolean;

@@ -180,7 +180,7 @@ program Package_Maker;
         db 'KBYTE=$KB',0
         db 'MBYTE=$MB',0
         db 'GBYTE=$GB',0
-        db 'OBYTE=>$GB',0
+        db 'OVERBYTE=>$GB',0
 
         db 'SCAN.INIT=Perform initial scan',0
         db 'SCAN.POST=Perform secondary scan',0
@@ -211,6 +211,8 @@ program Package_Maker;
         db 'IDX.NEW.DIR=New: $\',0
         db 'IDX.MOD.FILE=Changed: $',0
         db 'IDX.MOD.DIR=Changed: $\',0
+
+        db 'PAUSED=press a key to continue...',0
         db 0
     end;
 
@@ -220,7 +222,7 @@ program Package_Maker;
             if Assigned(DataFile) and FileExists(DataFile^.Name) then begin
                 DataFile^.Close;
                 DataFile^.Erase;
-                WriteLn;
+                WriteLn('');
                 Write(NLSstr('FILE.DEL', Datafile^.Name));
             end;
         end else begin
@@ -228,7 +230,7 @@ program Package_Maker;
                 LSMFile^.Close;
                 if not LSMAppend then begin
                     LSMFile^.Erase;
-                    WriteLn;
+                    WriteLn('');
                     Write(NLSstr('FILE.DEL', LSMFile^.Name));
                 end;
             end;
@@ -236,7 +238,7 @@ program Package_Maker;
                 LSTFile^.Close;
                 if not LSTAppend then begin
                     LSTFile^.Erase;
-                    WriteLn;
+                    WriteLn('');
                     Write(NLSstr('FILE.DEL', LSTFile^.Name));
                 end;
             end;
@@ -244,7 +246,7 @@ program Package_Maker;
                 MODFile^.Close;
                 if not MODAppend then begin
                     MODFile^.Erase;
-                    WriteLn;
+                    WriteLn('');
                     Write(NLSstr('FILE.DEL', MODFile^.Name));
                 end;
             end;
@@ -252,7 +254,7 @@ program Package_Maker;
         if Assigned(TMPFile) then begin
             TMPFile^.Close;
             TMPFile^.Erase;
-            WriteLn;
+            WriteLn('');
             Write(NLSstr('FILE.DEL', TMPFile^.Name));
         end;
     end;
@@ -264,7 +266,7 @@ program Package_Maker;
         if Assigned(F) then begin
             R := F^.IOResult;
             if R <> 0 then begin
-                WriteLn;
+                WriteLn('');
                 WriteLn(ErrorMsg(R, F^.Name));
                 F^.Close; { We will probably close it twice. Don't matter! }
                 UserTerminate;
@@ -285,7 +287,7 @@ program Package_Maker;
         if Not Assigned(DataFile) then exit;
         DataFile^.Erase;
         if ShowMsg then begin
-            WriteLn;
+            WriteLn('');
             Write(NLSstr('FILE.DEL', Datafile^.Name));
         end;
     end;
@@ -326,14 +328,14 @@ program Package_Maker;
         if MaxAvail < 20480 then begin
             if MaxAvail < 5120 then begin
                 TumblerDone;
-                WriteLn;
+                WriteLn('');
                 UserTerminate;
-                WriteLn;
+                WriteLn('');
                 WriteHalt(ErrorMsg(9,''),9);
             end else if not LowWarn then begin
                 TumblerDone;
-                WriteLn;
-                Write(NLSstr('ERROR.LOWMEM', IntStr(MaxAvail)), ' ');
+                WriteLn('');
+                Write(NLSstr('ERROR.LOWMEM', IntStr(MaxAvail)) + ' ');
                 LowWarn := true;
             end
         end else if MaxAvail > 30720 then
@@ -357,8 +359,8 @@ program Package_Maker;
             if LSTAppend then begin
                 TumblerDone;
                 { if not NoScan then }
-                WriteLn;
-                Write(NLSstr('FILE.APPEND', LSTFileName), ' ');
+                WriteLn('');
+                Write(NLSstr('FILE.APPEND', LSTFileName) + ' ');
             end;
             LSTFile :=New(PDiskFile, Create(nil));
             LSTFile^.Assign(LSTFileName);
@@ -379,8 +381,8 @@ program Package_Maker;
         if not Assigned(MODFile) then begin
             if MODAppend then begin
                 TumblerDone;
-                WriteLn;
-                Write(NLSstr('FILE.APPEND', MODFileName), ' ');
+                WriteLn('');
+                Write(NLSstr('FILE.APPEND', MODFileName)+ ' ');
             end else
                 AddToLST(MODFileName);
             MODFile :=New(PDiskFile, Create(nil));
@@ -416,12 +418,12 @@ program Package_Maker;
         Year, Month, Day, DayOfWeek: Word;
     begin
         if LSMAppend then begin
-            WriteLn;
+            WriteLn('');
             Write(NLSstr('FILE.KEEP', LSMFileName));
             Exit;
         end;
         AddToLST(LSMFileName);
-        { WriteLn; }
+        { WriteLn(''); }
         if Not Assigned(LSMFile) then begin
             LSMFile :=New(PDiskFile, Create(nil));
             LSMFile^.Assign(LSMFileName);
@@ -466,7 +468,7 @@ program Package_Maker;
     begin
         if New = false then begin
             {if (NewFiles <> 0) or (NewDirs <> 0) then}
-            WriteLn;
+            WriteLn('');
             XE := ElapsedTicks(true);
             if XE = 0 then
                 XF := 0
@@ -478,7 +480,7 @@ program Package_Maker;
             else
                 Write(NLS('SCAN.DONE'));
         end;
-        WriteLn;
+        WriteLn('');
         if New then begin
             S := NLS('STATS.NEW');
             S := ReplaceStr(S, '$0', IntStr(NewDirs), True);
@@ -486,7 +488,7 @@ program Package_Maker;
             if TotalBytes >= 0 then
                 S := ReplaceStr(S, '$2', SizeStr(NewBytes, True), True)
             else
-                S := ReplaceStr(S, '$2', NLSStr('OBYTES', '2'), True);
+                S := ReplaceStr(S, '$2', NLSStr('OVERBYTE', '2'), True);
         end else begin
             S := NLS('STATS.NOW');
             S := ReplaceStr(S, '$0', IntStr(TotalDirs), True);
@@ -494,7 +496,7 @@ program Package_Maker;
             if TotalBytes >= 0 then
                 S := ReplaceStr(S, '$2', SizeStr(TotalBytes, True), True)
             else
-                S := ReplaceStr(S, '$2', NLSStr('OBYTES', '2'), True);
+                S := ReplaceStr(S, '$2', NLSStr('OVERBYTE', '2'), True);
             if ModFiles > 0 then begin
                 WriteLn(S);
                 S := NLS('STATS.MOD');
@@ -577,10 +579,10 @@ program Package_Maker;
             end;
             if Verbose then begin
                 TumblerDone;
-                WriteLn;
+                WriteLn('');
                 Write(NLSstr('IDX.NEW.' +
                     WhichStr(I.Attr and faDirectory = faDirectory, 'FILE', 'DIR'),
-                    D + I.Name), ' ');
+                    D + I.Name) + ' ');
             end;
 
         end else if (I.Attr and faDirectory = faDirectory) and
@@ -588,7 +590,7 @@ program Package_Maker;
             { I think we can just ignore modified DIR items }
             { if (I.Time <> O.Time) or (I.Attr <> O.Attr) then begin
                   TumblerDone;
-                  WriteLn;
+                  WriteLn('');
                   Write(NLSstr('IDX.MOD.DIR', D + I.Name), ' ');
             end; }
 
@@ -598,8 +600,8 @@ program Package_Maker;
             AddToMOD(D + I.Name);
             if Verbose then begin
                   TumblerDone;
-                  WriteLn;
-                  Write(NLSstr('IDX.MOD.FILE', D + I.Name), ' ');
+                  WriteLn('');
+                  Write(NLSstr('IDX.MOD.FILE', D + I.Name) + ' ');
             end;
         end;
     end;
@@ -627,8 +629,8 @@ program Package_Maker;
 
             if {ScanMulti and} (Length(D) < 4) then begin
                 TumblerDone;
-                WriteLn;
-                Write(NLSstr('SCAN.DRIVE', D {Copy(D, 1,2)}), ' ');
+                WriteLn('');
+                Write(NLSstr('SCAN.DRIVE', D {Copy(D, 1,2)}) + ' ');
             end;
 
             Tumbler;
@@ -638,7 +640,7 @@ program Package_Maker;
             { WriteLn(Space(CountStr(PathDelim, D) * 2), BaseNameOf(NoTailDelim(D))); }
             if (DOSError <> 0) then begin
                 TumblerDone;
-                WriteLn;
+                WriteLn('');
                 if (Length(D) < 4) then
                     Write(NLSstr('ERROR.' + ErrBadDrv, D))
                 else if DOSError = 18 then
@@ -651,7 +653,7 @@ program Package_Maker;
             {
             if MaxAvail < 20480 then begin
                 TumblerDone;
-                WriteLn;
+                WriteLn('');
                 Write (MaxAvail, ',', MemAvail, ' > ', D);
             end;
             }
@@ -724,7 +726,7 @@ program Package_Maker;
             { WriteLn(S, ' > ', D, ' + ', F); }
             List := nil;
             AddList(List, D);
-            { WriteLn; }
+            { WriteLn(''); }
             while Assigned(List) do begin
                 P := List;
                 List := P^.Next;
@@ -746,7 +748,7 @@ program Package_Maker;
                                 Inc(NewBytes, SR.Size);
                             AddToLST(PtrStr(P^.Path)+SR.Name);
                             if Verbose then begin
-                                WriteLn;
+                                WriteLn('');
                                 Write(ReplaceStr(T, '$', PtrStr(P^.Path)+SR.Name, false));
                             end;
                         end;
@@ -775,8 +777,8 @@ program Package_Maker;
             LSTFile^.Assign(LSTFileName);
             LSTFile^.Reset;
             CheckFileError(LSTFile);
-            WriteLn;
-            Write(NLSstr('FILE.PRUNE', LSTFileName), ' ');
+            WriteLn('');
+            Write(NLSstr('FILE.PRUNE', LSTFileName) + ' ');
         end else
             LSTAppend := True;
         LSTFile^.SeekSOF;
@@ -812,7 +814,7 @@ program Package_Maker;
                 end;
             end;
             if Detach then begin
-                WriteLn;
+                WriteLn('');
                 Write(ReplaceStr(DS, '$', S, false));
             end else begin
                 TMPFile^.WriteLn(S);
@@ -894,7 +896,7 @@ program Package_Maker;
             if (APercent = 100) then Write('100%');
             Exit;
         end;
-        Write(ChrStr(#8, 4), LSpace(IntStr(APercent), 3), '%');
+        System.Write(ChrStr(#8, 4) + LSpace(IntStr(APercent), 3)+ '%');
     end;
 
     function GetPkgSettings : boolean;
@@ -1078,13 +1080,13 @@ program Package_Maker;
             if IsOutCON then Write(Space(5));
             Ret := CopyFile(S, DF, nil, 65535, CopyProgress);
             if Ret <> 0 then begin
-                WriteLn;
+                WriteLn('');
                 WriteLn(ErrorMsg(RET, DF));
                 UserTerminate;
                 WriteHalt(NLS('PROG.ABORT'), 1);
             end;
-            if IsOutCON then Write(ChrStr(#8, 5), Space(5), ChrStr(#8, 5));
-            WriteLn;
+            if IsOutCON then System.Write(ChrStr(#8, 5) + Space(5) + ChrStr(#8, 5));
+            WriteLn('');
         end;
 
         GetDir(0, CDir);
@@ -1173,7 +1175,7 @@ program Package_Maker;
         end;
         if OptPkgAdd <> '' then AddFiles;
         if OptPkgDel <> '' then begin
-            if OptPkgAdd <> '' then WriteLn;
+            if OptPkgAdd <> '' then WriteLn('');
             DelFiles;
         end;
 
@@ -1182,14 +1184,14 @@ program Package_Maker;
             if Assigned(LSTFile) then LSTFile^.Close;
             if Assigned(MODFile) then MODFile^.Close;
             if LSMAppend or LSTAppend or MODAppend then begin
-                WriteLn;
+                WriteLn('');
                 Write(NLSstr('META.UPDATE', PkgWildCard));
             end else begin
-                WriteLn;
+                WriteLn('');
                 Write(NLSstr('META.MADE', PkgWildCard));
             end;
         end;
-        WriteLn;
+        WriteLn('');
     end;
 
     procedure PerformTask;
