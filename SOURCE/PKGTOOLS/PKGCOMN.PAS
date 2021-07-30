@@ -78,8 +78,8 @@ implementation
             ScreenY := 1;
             S := NLS('PAUSED');
             System.Write(S);
-            System.Write(ChrStr(#8, Length(S)) + SPace(Length(S)) + ChrStr(#8, Length(S)));
             TestBreakWait;
+            System.Write(ChrStr(#8, Length(S)) + SPace(Length(S)) + ChrStr(#8, Length(S)));
         end;
     end;
 
