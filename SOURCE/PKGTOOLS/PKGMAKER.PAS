@@ -179,6 +179,8 @@ program Package_Maker;
         db 'BYTES=$ bytes',0
         db 'KBYTE=$KB',0
         db 'MBYTE=$MB',0
+        db 'GBYTE=$GB',0
+        db 'OBYTE=>$GB',0
 
         db 'SCAN.INIT=Perform initial scan',0
         db 'SCAN.POST=Perform secondary scan',0
@@ -481,12 +483,18 @@ program Package_Maker;
             S := NLS('STATS.NEW');
             S := ReplaceStr(S, '$0', IntStr(NewDirs), True);
             S := ReplaceStr(S, '$1', IntStr(NewFiles), True);
-            S := ReplaceStr(S, '$2', SizeStr(NewBytes, True), True);
+            if TotalBytes >= 0 then
+                S := ReplaceStr(S, '$2', SizeStr(NewBytes, True), True)
+            else
+                S := ReplaceStr(S, '$2', NLSStr('OBYTES', '2'), True);
         end else begin
             S := NLS('STATS.NOW');
             S := ReplaceStr(S, '$0', IntStr(TotalDirs), True);
             S := ReplaceStr(S, '$1', IntStr(TotalFiles), True);
-            S := ReplaceStr(S, '$2', SizeStr(TotalBytes, True), True);
+            if TotalBytes >= 0 then
+                S := ReplaceStr(S, '$2', SizeStr(TotalBytes, True), True)
+            else
+                S := ReplaceStr(S, '$2', NLSStr('OBYTES', '2'), True);
             if ModFiles > 0 then begin
                 WriteLn(S);
                 S := NLS('STATS.MOD');
@@ -563,7 +571,8 @@ program Package_Maker;
                 Inc(NewDirs)
             end else begin
                 Inc(NewFiles);
-                Inc(NewBytes, I.Size);
+                if NewBytes >= 0 then
+                    Inc(NewBytes, I.Size);
                 AddToLST(D + I.Name);
             end;
             if Verbose then begin
@@ -656,7 +665,8 @@ program Package_Maker;
                     end;
                 end else if (IName <> S.Name) or (IPath <> D) then begin
                     Inc(TotalFiles);
-                    Inc(TotalBytes, S.Size);
+                    if TotalBytes >= 0 then
+                        Inc(TotalBytes, S.Size);
                     if InitScan then begin
                         FillChar(I.Name, Sizeof(I.Name), 0);
                         I.Name := S.Name;
@@ -732,7 +742,8 @@ program Package_Maker;
                             Inc(NewDirs);
                         end else begin
                             Inc(NewFiles);
-                            Inc(NewBytes, SR.Size);
+                            if NewBytes >= 0then
+                                Inc(NewBytes, SR.Size);
                             AddToLST(PtrStr(P^.Path)+SR.Name);
                             if Verbose then begin
                                 WriteLn;
