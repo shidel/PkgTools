@@ -8,13 +8,14 @@ cd QCRT
 call mkdemos.bat
 cd ..
 :HaveQCRT
-if "%1" == "dev" goto DevBuild
+rem if "%1" == "dev" goto DevBuild1
 
 
 call tpc /M /OQCRT\PASCAL /IQCRT\PASCAL -UQCRT\PASCAL -EBIN PKGINFO.PAS
 if not exist BIN\PKGINFO.EXE goto Done
+if "%1" == "dev" goto DoneDevBuild
 
-:DevBuild
+:DevBuild1
 if not exist PKGMAKER.PAS goto NoDevBuild
 call tpc /M /OQCRT\PASCAL /IQCRT\PASCAL -UQCRT\PASCAL -EBIN PKGMAKER.PAS
 if not exist BIN\PKGMAKER.EXE goto Done
@@ -23,7 +24,7 @@ if not exist BIN\PKGMAKER.EXE goto Done
 
 del BIN\*.TPU
 
-
+:DoneDevBuild
 if "%1" == "dev" goto NoCompress
 upx -9 --8086 BIN\*.EXE
 :NoCompress

@@ -15,8 +15,6 @@ program Package_Info;
 uses PkgComn, QDOS, QClass, QStrings, QNLS, QPkgLSM, QAsciiZ, QFiles;
 
 const
-    AppVersion = '2021-07-30';
-
     ListDetails : String = '*title;*version;*copying;description';
     ListMore : String = '*title;*version;entered;' +
         'description;summary;changes;keywords;author;maintained;' +
@@ -39,6 +37,7 @@ const
     ReportMissing : boolean = false;
     ReportUsage : boolean = false;
     ReportEXEs : boolean = false;
+    WildSearch : String = '';
     ListFiles : integer = 0; { 0 = don't; 1 = invisible for Missing & Usage;
                                2 = EXE, COM & BAT; 3 = Everything }
 
@@ -96,6 +95,11 @@ const
         db 'PACKAGES=$0 of $1 packages shown',0
 
         db 0
+    end;
+
+    function SearchMetaData(LSM : PPackageLSM) : boolean;
+    begin
+        SearchMetaData := True;
     end;
 
     function NumberStr(I : Longint) : String;
@@ -250,20 +254,22 @@ const
         Item:=PDirItem(AObject);
         if (PkgWildCard <> '*') and
             (MatchWildCard(PkgWildCard, BaseNameOf(Item^.Name)) = false) then exit;
-        Inc(PkgShown);
         LSM := PPackageLSM(NewPackageLSM(nil));
         Err := LSM^.ReadMetaData(BaseNameOf(Item^.Name));
-        if Err <> 0 then
-            WriteLn(RSpace(BaseNameOf(Item^.Name), 9), '-> ', NLSStr('ERROR.NUMBER', IntStr(Err)))
-        else begin
-            T := LSM^.DataStr('title');
-            V := LSM^.DataStr('version');
-            if V <> '' then V := '(' + V + ')';
-            if (T <> '') and (V <> '') then V := #32 + V;
-            WriteLn(RSpace(BaseNameOf(Item^.Name), 9), ': ', T, V);
-            Dispose(LSM, Destroy);
+        if SearchMetaData(LSM) or (Err <> 0) then begin
+            Inc(PkgShown);
+            if Err <> 0 then
+                WriteLn(RSpace(BaseNameOf(Item^.Name), 9), '-> ', NLSStr('ERROR.NUMBER', IntStr(Err)))
+            else begin
+                T := LSM^.DataStr('title');
+                V := LSM^.DataStr('version');
+                if V <> '' then V := '(' + V + ')';
+                if (T <> '') and (V <> '') then V := #32 + V;
+                WriteLn(RSpace(BaseNameOf(Item^.Name), 9), ': ', T, V);
+            end;
+            if ListFiles > 0 then ListPackageFiles(BaseNameOf(Item^.Name));
         end;
-        if ListFiles > 0 then ListPackageFiles(BaseNameOf(Item^.Name));
+        if Assigned(LSM) then Dispose(LSM, Destroy);
     end;
 
     function ExpandMetaID(AStr:String) : String;
@@ -335,53 +341,55 @@ const
           letters.}
         if (PkgWildCard <> '*') and
             (MatchWildCard(PkgWildCard, BaseNameOf(Item^.Name)) = false) then exit;
-        Inc(PkgShown);
-        if (PkgShown > 1) then WriteLn;
         LSM := PPackageLSM(NewPackageLSM(nil));
         Err := LSM^.ReadMetaData(BaseNameOf(Item^.Name));
-        if Err <> 0 then
-            WriteLn(RSpace(BaseNameOf(Item^.Name), 9), '-> ', NLSStr('ERROR.NUMBER', IntStr(Err)))
-        else begin
-            WriteLn(BaseNameOf(Item^.Name), ':');
-            if DetailLevel = 1 then
-                L := UCase(ListMore)
-            else
-                L := UCase(ListDetails);
-            while L <> '' do begin
-                I := Pos(';', L);
-                if I < 1 then I := Length(L) + 1;
-                M := Copy(L, 1, I - 1);
-                Delete(L,1, I);
-                if (M <> '') and (M[1] = '*') then begin
-                    R := True;
-                    Delete(M, 1,1);
-                end else
-                    R := False;
-                if M = '' then Continue;
-                M := ExpandMetaID(M);
-                P := LSM^.DataPtr(M);
-                if Assigned(P) then begin
-                    H := false;
-                    for I := 0 to LSM^.DataLen(P) - 1 do
-                        if (P^[I] <> '-') then begin
-                            H := True;
-                            Break;
-                        end;
-                    if  not H then P := nil;
-                end;
+        if SearchMetaData(LSM) or (Err <> 0) then begin
+            Inc(PkgShown);
+            if (PkgShown > 1) then WriteLn;
+            if Err <> 0 then
+                WriteLn(RSpace(BaseNameOf(Item^.Name), 9), '-> ', NLSStr('ERROR.NUMBER', IntStr(Err)))
+            else begin
+                WriteLn(BaseNameOf(Item^.Name), ':');
+                if DetailLevel = 1 then
+                    L := UCase(ListMore)
+                else
+                    L := UCase(ListDetails);
+                while L <> '' do begin
+                    I := Pos(';', L);
+                    if I < 1 then I := Length(L) + 1;
+                    M := Copy(L, 1, I - 1);
+                    Delete(L,1, I);
+                    if (M <> '') and (M[1] = '*') then begin
+                        R := True;
+                        Delete(M, 1,1);
+                    end else
+                        R := False;
+                    if M = '' then Continue;
+                    M := ExpandMetaID(M);
+                    P := LSM^.DataPtr(M);
+                    if Assigned(P) then begin
+                        H := false;
+                        for I := 0 to LSM^.DataLen(P) - 1 do
+                            if (P^[I] <> '-') then begin
+                                H := True;
+                                Break;
+                            end;
+                        if  not H then P := nil;
+                    end;
 
-                if R or Assigned(P) then begin
-                    Write(Tab, RSpace(NLS(PrefixLSM + M) + ':', MetaFieldWidth));
-                    if not Assigned(P) then
-                        WriteLn(NLS(PrefixLSM + 'NA'))
-                    else
-                        WrapWriteLn(P);
+                    if R or Assigned(P) then begin
+                        Write(Tab, RSpace(NLS(PrefixLSM + M) + ':', MetaFieldWidth));
+                        if not Assigned(P) then
+                            WriteLn(NLS(PrefixLSM + 'NA'))
+                        else
+                            WrapWriteLn(P);
+                    end;
                 end;
+                if ListFiles > 0 then
+                    Err := ListPackageFiles(BaseNameOf(Item^.Name));
             end;
-            if ListFiles > 0 then
-                Err := ListPackageFiles(BaseNameOf(Item^.Name));
-            Dispose(LSM, Destroy);
         end;
+        if Assigned(LSM) then Dispose(LSM, Destroy);
     end;
 
     procedure CalcMetaFieldWidth;
@@ -469,13 +477,15 @@ const
             ReportEXEs := True;
         end else if Option = 'A' then begin
             if ListFiles < 3 then ListFiles := 3;
-        end else
+        end else if Option = 'S' then begin
+            WildSearch := ParamStr(NextParam);
+            Inc(NextParam);
+         end else
             Options := False;
     end;
 
 
 begin
-    Version := AppVersion;
     SetBuiltInLanguage(@ProgramMessages);
     SetLanguage('');
     ParseCommandLine(Options);

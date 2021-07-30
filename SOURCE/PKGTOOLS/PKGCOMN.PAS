@@ -18,13 +18,14 @@ interface
         TCommandLineOption = function (Option : String; var NextParam : Integer) : boolean;
 
     const
-        Version : String = 'alpha0';
+        Version : String = '2021-07-30';
         Tab : String = '    ';
         TabStop : word = 4;
         PkgWildCard : String = '*';
         TumblerRate : integer = 10;
         CleanUpProc : TCleanUpProc = nil;
         IsOutCON : boolean = true;
+        PagePause : boolean = false;
 
      const
         ErrBadOpt   = 'BADOPT';
@@ -229,9 +230,17 @@ implementation
         I : integer;
         Opt, H : String;
     begin
-         for I := 1 to ParamCount do
+        for I := 1 to ParamCount do
             if ParamStr(I) = '//' then SwitchChar := '/';
-         for I := 1 to ParamCount do
+        for I := 1 to ParamCount do begin
+            if (Opt = SwitchChar + 'P') or
+            (Opt = SwitchChar + 'P+') or (Opt = SwitchChar +  '+P') then begin
+                PagePause := IsOutCON;
+            end else if (Opt = SwitchChar + 'P-') or (Opt = SwitchChar + '-P') then begin
+                PagePause := False;
+            end;
+        end;
+        for I := 1 to ParamCount do
             if (UCase(ParamStr(I)) = SwitchChar + 'H')
             or (UCase(ParamStr(I)) = SwitchChar + '?')
             or (UCase(ParamStr(I)) = SwitchChar + 'HELP') then
@@ -246,13 +255,16 @@ implementation
             if Length(Opt) < 1 then
                 continue { should never happen }
             else if (Opt[1] = SwitchChar) then begin
-                if Opt = SwitchChar + 'NLS' then
+                if Opt = SwitchChar + 'NLS' then begin
+                    { ignore }
                     Inc(I)
-                else if Opt = '//' then
-                    Inc(I)
-                else if Opt = SwitchChar + 'VER' then
+                end else if (Opt = '//') or (Opt = SwitchChar + 'P') or
+                (Opt = SwitchChar + 'P+') or (Opt = SwitchChar + '+P') or
+                (Opt = SwitchChar + 'P-') or (Opt = SwitchChar + '-P') then begin
+                    { ignore }
+                end else if Opt = SwitchChar + 'VER' then begin
                     VersionShow := True
-                else if Assigned(OptionHandler) and
+                end else if Assigned(OptionHandler) and
                 OptionHandler(Copy(Opt, 2, Length(Opt)),I) then begin
                     VersionToggle := True
                 end else begin
