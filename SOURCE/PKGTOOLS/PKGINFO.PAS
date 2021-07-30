@@ -495,7 +495,6 @@ const
             Options := False;
     end;
 
-
 begin
     SetBuiltInLanguage(@ProgramMessages);
     SetLanguage('');

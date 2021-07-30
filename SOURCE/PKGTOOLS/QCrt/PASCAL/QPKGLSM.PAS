@@ -135,7 +135,7 @@ begin
         while (Pos(PAsciiZ(PLang)^[I], #$0A#$0D#$00) < 1) do Inc(I);
         while (Pos(PAsciiZ(PLang)^[I], #$0A#$0D) > 0) do Inc(I);
         { Inc(I); }
-    until I >= PSize - 2 - Length(AID);
+    until (I >= PSize - 2 - Length(AID)) or (PAsciiZ(PLang)^[I] = #0);
 end;
 
 function TPackageLSM.FieldPtr(AID : String) : Pointer;
@@ -238,6 +238,7 @@ begin
     inherited Create(AOwner);
     IncludeParent := False;
     IncludeDirs := False;
+    Sorted := True;
 end;
 
 function TPackageList.GetClassName : String;

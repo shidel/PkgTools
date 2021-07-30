@@ -252,7 +252,10 @@ type
     end;
     PDirList = ^TDirList;
     TDirList = object(TList)
+    private
+        CPtr : PListItem;
     public
+        Sorted : boolean;
         IncludeParent,
         IncludeDirs,
         IncludeFiles,
@@ -261,6 +264,7 @@ type
         function GetClassName : String; virtual;
         function SizeOfObject : LongInt; virtual;
         function GetDirList(PathName : String; Attr : Word) : integer; virtual;
+        function AddItem(AObject : PObject) : PObject; virtual;
     end;
 
 function NewDirItem(AOwner:PObject) : PObject;
@@ -1630,6 +1634,8 @@ begin
     IncludeDirs := True;
     IncludeFiles := True;
     IncludeVolumeID := False;
+    Sorted := True;
+    CPtr := nil;
 end;
 
 function TDirList.GetClassName : String;
@@ -1674,6 +1680,26 @@ begin
     GetDirList := Ret;
     FindClose(Search);
 end;
+
+function TDirList.AddItem(AObject : PObject) : PObject;
+begin
+    CPtr := GetLast;
+    if (not Sorted) or (not Assigned(CPtr)) or (not Assigned(AObject)) then begin
+        AddItem := inherited AddItem(AObject);
+    end else begin
+        if ( PDirItem(AObject)^.Name >= PDirItem(CPtr^.PItem)^.Name ) then begin
+            AddItem := inherited AddItem(AObject);
+            Exit;
+        end;
+        CPtr := GetFirst;
+        while Assigned(CPtr) and
+        ( PDirItem(AObject)^.Name > PDirItem(CPtr^.PItem)^.Name ) do begin
+            CPtr := CPtr^.PNext;
+        end;
+        AddItem := InsertItem(AObject, CPtr);
+    end;
+end;
+
 
 function NewDirItem(AOwner:PObject) : PObject;
 begin

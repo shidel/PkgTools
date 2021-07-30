@@ -8,7 +8,7 @@ cd QCRT
 call mkdemos.bat
 cd ..
 :HaveQCRT
-if "%1" == "dev" goto DevBuild1
+rem if "%1" == "dev" goto DevBuild1
 
 
 call tpc /M /OQCRT\PASCAL /IQCRT\PASCAL -UQCRT\PASCAL -EBIN PKGINFO.PAS

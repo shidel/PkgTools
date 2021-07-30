@@ -67,7 +67,10 @@ type
         procedure Clear; virtual;
         function ForEach ( AFunction : TForEachFunction ) : integer; virtual;
         function AddItem(AObject : PObject) : PObject; virtual;
+        function InsertItem(AObject : PObject; ABefore : PListItem) : PObject; virtual;
         function Count : LongInt; virtual;
+        function GetFirst : PListItem; virtual;
+        function GetLast : PListItem; virtual;
     end;
 
 procedure RegisterObject(const AClassName : String; const ACreate : TCreateFunction);
@@ -216,7 +219,6 @@ begin
     ForEach:=Ret;
 end;
 
-
 function TList.AddItem(AObject : PObject) : PObject;
 begin
     PCurrent := PListItem(NewListItem(@Self));
@@ -233,9 +235,40 @@ begin
     AddItem := PCurrent;
 end;
 
+function TList.InsertItem(AObject : PObject; ABefore : PListItem) : PObject;
+begin
+    if ABefore = nil then ABefore := PFirst;
+    PCurrent := PListItem(NewListItem(@Self));
+    PCurrent^.PItem := AObject;
+    if Assigned(ABefore) then begin
+        PCurrent^.PNext := ABefore;
+        PCurrent^.PPrior := ABefore^.PPrior;
+        if Assigned(PCurrent^.PPrior) then
+            PCurrent^.PPrior^.PNext := PCurrent;
+        ABefore^.PPrior := PCurrent;
+        if PCurrent^.PPrior = nil then
+            PFirst := PCurrent;
+    end else begin
+        PLast := PCurrent;
+        PFirst := PCurrent;
+    end;
+    Inc(FCount);
+    InsertItem := PCurrent;
+end;
+
 function TList.Count : LongInt;
 begin
     Count := FCount;
+end;
+
+function TList.GetFirst : PListItem;
+begin
+    GetFirst := PFirst;
+end;
+
+function TList.GetLast : PListItem;
+begin
+    GetLast := PLast;
 end;
 
 { Unit procedures and functions }
