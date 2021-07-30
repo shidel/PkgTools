@@ -99,7 +99,12 @@ const
 
     function SearchMetaData(LSM : PPackageLSM) : boolean;
     begin
-        SearchMetaData := True;
+        if not Assigned(LSM) then
+            SearchMetaData := False
+        else if WildSearch = '' then
+            SearchMetaData := True
+        else
+            SearchMetaData:=LSM^.SearchMetaWild(WildSearch);
     end;
 
     function NumberStr(I : Longint) : String;
@@ -437,7 +442,10 @@ const
         Y := MemAvail;
 
         if PkgShown = 0 then begin
-            WriteLn(NLSStr('PKG.NOTFOUND', PkgWildCard));
+            if WildSearch <> '' then
+                WriteLn(NLSStr('PKG.NOTFOUND', WildSearch))
+            else
+                WriteLn(NLSStr('PKG.NOTFOUND', PkgWildCard));
             if PkgTesting then  Halt(2);
         end else begin
             WriteLn;

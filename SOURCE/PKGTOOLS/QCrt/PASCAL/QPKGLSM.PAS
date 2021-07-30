@@ -40,6 +40,8 @@ interface
             function DataPtr(AID : String) : Pointer; virtual;
             function DataLen(P : Pointer) : word; virtual;
             function DataStr(AID : String) : String; virtual;
+            function SearchMetaWildLang(PLang:Pointer; PSize : word; AWild : String) : boolean;  virtual;
+            function SearchMetaWild(AWild : String) : boolean; virtual;
         end;
 
         PPackageList = ^TPackageList;
@@ -130,14 +132,15 @@ begin
             SearchField := Ptr(Seg(PLang^), Ofs(PLang^) + I );
             Exit;
         end;
-        Inc(I);
+        while (Pos(PAsciiZ(PLang)^[I], #$0A#$0D#$00) < 1) do Inc(I);
+        while (Pos(PAsciiZ(PLang)^[I], #$0A#$0D) > 0) do Inc(I);
+        { Inc(I); }
     until I >= PSize - 2 - Length(AID);
 end;
 
 function TPackageLSM.FieldPtr(AID : String) : Pointer;
 var
     P : Pointer;
-    I : word;
 begin
     P := SearchField(ULang, USize, AID);
     if not Assigned(P) then P := SearchField(DLang, DSize, AID);
@@ -189,6 +192,43 @@ begin
         Move(P^, S[1], L);
         DataStr := S;
     end;
+end;
+
+function TPackageLSM.SearchMetaWildLang(PLang:Pointer; PSize : word; AWild : String) : boolean;
+var
+    R : String;
+    I : word;
+begin
+    SearchMetaWildLang := False;
+    if Not Assigned(PLang) or (PSize < 2) then Exit;
+    I := 0;
+    AWild := '*' + UCase(AWILD) + '*';
+    repeat
+        R := '';
+        while (Pos(PAsciiZ(PLang)^[I], #$3A#$00) < 1) do Inc(I);
+        while (PAsciiZ(PLang)^[I] = #$3A) do Inc(I);
+        while (Pos(PAsciiZ(PLang)^[I], #$0A#$0D#$00) < 1) do begin
+            R := R + (PAsciiZ(PLang)^[I]);
+            Inc(I);
+        end;
+        if MatchWildCard(AWild, UCase(R)) then begin
+            SearchMetaWildLang:= True;
+            Exit;
+        end;
+        while (Pos(PAsciiZ(PLang)^[I], #$0A#$0D#$00) < 1) do Inc(I);
+        while (Pos(PAsciiZ(PLang)^[I], #$0A#$0D) > 0) do Inc(I);
+        { Inc(I); }
+    until I >= PSize - 2;
+end;
+
+function TPackageLSM.SearchMetaWild(AWild : String) : boolean;
+var
+    X : boolean;
+begin
+    X := SearchMetaWildLang(ULang, USize, AWild);
+    if not X then
+        X := SearchMetaWildLang(DLang, DSize, AWild);
+    SearchMetaWild:= X;
 end;
 
 { TPackageList }
