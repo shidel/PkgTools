@@ -1039,7 +1039,7 @@ program Package_Maker;
                 LSTFile^.Rewrite;
             CheckFileError(LSTFile);
         end;
-        if DirExists(TailDelim(GetEnv('DOSDIR'))) then begin
+        if DirExists(ReMapFile(TailDelim(GetEnv('DOSDIR')))) then begin
             WriteLn(ErrorMsg(5, ReMapFile(TailDelim(GetEnv('DOSDIR')))));
             if not OptForced then begin
                 UserTerminate;
