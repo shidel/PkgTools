@@ -213,6 +213,9 @@ program Package_Maker;
         db 'IDX.MOD.DIR=Changed: $\',0
 
         db 'PAUSED=press a key to continue...',0
+        db 'SUPPORT=Help support continued development of $ by becoming a Patron.'
+        db 13,10
+        db 'https://patreon.com/shidel',0
         db 0
     end;
 
@@ -353,8 +356,11 @@ program Package_Maker;
         UpdateDirItem(P^.Data, S, Time, Attr)
     end;
 
-    procedure AddToLST(FileName : String);
+    procedure AddToLST(FileName : String; CanIncSelf : boolean);
     begin
+        if (not CanIncSelf) and (UCase(FileName) = UCase(LSTFileName)) then begin
+            Exit;
+        end;
         if not Assigned(LSTFile) then begin
             if LSTAppend then begin
                 TumblerDone;
@@ -384,7 +390,7 @@ program Package_Maker;
                 WriteLn('');
                 Write(NLSstr('FILE.APPEND', MODFileName)+ ' ');
             end else
-                AddToLST(MODFileName);
+                AddToLST(MODFileName, False);
             MODFile :=New(PDiskFile, Create(nil));
             MODFile^.Assign(MODFileName);
             if MODAppend then
@@ -418,11 +424,12 @@ program Package_Maker;
         Year, Month, Day, DayOfWeek: Word;
     begin
         if LSMAppend then begin
-            WriteLn('');
+            if not OptMetaOnly then WriteLn('');
             Write(NLSstr('FILE.KEEP', LSMFileName));
+            if OptMetaOnly then WriteLn('');
             Exit;
         end;
-        AddToLST(LSMFileName);
+        AddToLST(LSMFileName, False);
         { WriteLn(''); }
         if Not Assigned(LSMFile) then begin
             LSMFile :=New(PDiskFile, Create(nil));
@@ -575,7 +582,7 @@ program Package_Maker;
                 Inc(NewFiles);
                 if NewBytes >= 0 then
                     Inc(NewBytes, I.Size);
-                AddToLST(D + I.Name);
+                AddToLST(D + I.Name, False);
             end;
             if Verbose then begin
                 TumblerDone;
@@ -746,7 +753,7 @@ program Package_Maker;
                             Inc(NewFiles);
                             if NewBytes >= 0then
                                 Inc(NewBytes, SR.Size);
-                            AddToLST(PtrStr(P^.Path)+SR.Name);
+                            AddToLST(PtrStr(P^.Path)+SR.Name, True);
                             if Verbose then begin
                                 WriteLn('');
                                 Write(ReplaceStr(T, '$', PtrStr(P^.Path)+SR.Name, false));
@@ -755,7 +762,7 @@ program Package_Maker;
                     end;
                     FindNext(SR);
                 end;
-                FindCLose(SR);
+                FindClose(SR);
                 FreeStr(P^.Path);
                 Dispose(P);
                 F := '*'; { Sub dirs match all files/directories }
@@ -1184,14 +1191,14 @@ program Package_Maker;
             if Assigned(LSTFile) then LSTFile^.Close;
             if Assigned(MODFile) then MODFile^.Close;
             if LSMAppend or LSTAppend or MODAppend then begin
-                WriteLn('');
-                Write(NLSstr('META.UPDATE', PkgWildCard));
+                if not OptMetaOnly then  WriteLn('');
+                WriteLn(NLSstr('META.UPDATE', PkgWildCard));
             end else begin
-                WriteLn('');
-                Write(NLSstr('META.MADE', PkgWildCard));
+                if not OptMetaOnly then WriteLn('');
+                WriteLn(NLSstr('META.MADE', PkgWildCard));
             end;
-        end;
-        WriteLn('');
+        end else
+            WriteLn('');
     end;
 
     procedure PerformTask;
@@ -1271,6 +1278,7 @@ program Package_Maker;
         end else if Option = 'M' then begin
             DoneScan := False;
             OptKeepScan := True;
+            OptMetaOnly := True;
         end else if Option = 'F' then begin
             OptForced := True;
         end else if Option = 'D' then begin

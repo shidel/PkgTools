@@ -18,7 +18,7 @@ interface
         TCommandLineOption = function (Option : String; var NextParam : Integer) : boolean;
 
     const
-        Version : String = '2021-07-30';
+        Version : String = '2021-08-01';
         Tab : String = '    ';
         TabStop : word = 4;
         PkgWildCard : String = '*';
@@ -269,6 +269,17 @@ implementation
         WriteLn('');
     end;
 
+    procedure DisplaySupport;
+    var
+        S : String;
+    begin
+        S:=NLSstr('SUPPORT', NLS('PROG.TITLE'));
+        if S <> '' then begin
+            WriteLn(S);
+            WriteLn('');
+        end;
+    end;
+
     procedure DisplayHelp;
     var
         I, W, H : integer;
@@ -349,8 +360,12 @@ implementation
             end;
         end;
         if VersionShow then begin
+            if (not VersionToggle) then WriteLn('');
             DisplayVersion;
-            if (not VersionToggle) then Halt(0);
+            if (not VersionToggle) then begin
+                DisplaySupport;
+                Halt(0);
+            end;
         end;
         { ProcessPackages; Do it in utility }
     end;

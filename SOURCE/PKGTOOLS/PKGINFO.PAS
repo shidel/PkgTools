@@ -97,6 +97,9 @@ const
         db 'PAUSED=press a key to continue...',0
         db 'GBYTE=$GB',0
         db 'OVERBYTE=>$GB',0
+        db 'SUPPORT=Help support continued development of $ by becoming a Patron.'
+        db 13,10
+        db 'https://patreon.com/shidel',0
         db 0
     end;
 
