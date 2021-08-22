@@ -1,4 +1,16 @@
 @echo off
+
+if "%1" == "clean" goto clean
+goto Build
+
+:Clean
+deltree /y BIN
+deltree /y QCrt\BIN
+del QCRT\PASCAL\*.TPU
+del QCRT\PASCAL\*.OBJ
+goto done
+
+:Build
 if not exist BIN\NUL mkdir BIN
 if exist BIN\PKGINFO.EXE deltree /y BIN\*.EXE >NUL
 rem if exist BIN\QCRT.TPU deltree /y BIN\*.TPU >NUL

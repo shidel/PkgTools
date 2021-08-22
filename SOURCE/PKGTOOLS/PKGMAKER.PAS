@@ -1101,7 +1101,7 @@ program Package_Maker;
         Ret := IOResult;
         GetDir(0, ZDir);
         if Ret = 0 then begin
-            ChDir(ReMapFile(TailDelim(GetEnv('DOSDIR'))));
+            ChDir(NoTailDelim(ReMapFile(TailDelim(GetEnv('DOSDIR')))));
             Ret := IOResult;
             { MemStat; }
             if Ret <> 0 then begin

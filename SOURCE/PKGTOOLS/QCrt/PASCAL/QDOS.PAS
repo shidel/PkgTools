@@ -199,7 +199,7 @@ function FileExtension(AFileName : String) : String;
 function MakeDir ( ADir : String ) : integer;
 
 function DeleteFile(AFileName : String; Forced : boolean) : boolean;
-{ recursive delete all files and subdirectories }
+{ sorta-recursive delete all files and subdirectories }
 function DeleteDir(ADirName : String; Forced : boolean) : boolean;
 
 { Uses FindFirst to test if File/Dir Exists }
@@ -228,7 +228,6 @@ function GetEnvParam(AIndex : integer): String;
 function DiskReady(ADrive : byte):boolean;
 
 function SizeOfFile(AFileName : String) : longint;
-
 
 function CopyFile(ASrc, ADest : String; ABuf : pointer; ABufSize : word; AProgress : TCopyProgressFunc) : integer;
 { Simple File Copy, If ABuf is nil, one of ABufSize will be created and destroyed
@@ -1250,6 +1249,7 @@ var
     X : integer;
 begin
     X := DosError;
+    DosError := 0;
     FindFirst(FileExpand(AFileName), faAnyFile, Search);
     FileExists := (DosError = 0) and (Search.Attr and faDirectory <> faDirectory);
     DosError := X;
@@ -1261,8 +1261,9 @@ var
     X : integer;
 begin
     X := DosError;
-    FindFirst(TailDelim(AFileName) + WildCard, faAnyFile, Search);
-    DirExists := (DosError = 0);
+    DosError := 0;
+    FindFirst(NoTailDelim(AFileName), faAnyFile, Search);
+    DirExists := (DosError = 0) and (Search.Attr and faDirectory = faDirectory);
     DosError := X;
 end;
 
@@ -1273,7 +1274,7 @@ begin
     if DirExists(ADir) then Exit;
     DosError := MakeDir(PathOf(ADir));
     if DosError = 0 then begin
-        MkDir(ADir);
+        MkDir(NoTailDelim(ADir));
         DosError := IOResult;
     end;
     MakeDir := DosError;
