@@ -18,7 +18,7 @@ interface
         TCommandLineOption = function (Option : String; var NextParam : Integer) : boolean;
 
     const
-        Version : String = '2021-08-01';
+        Version : String = '2021-08-22';
         Tab : String = '    ';
         TabStop : word = 4;
         PkgWildCard : String = '*';
