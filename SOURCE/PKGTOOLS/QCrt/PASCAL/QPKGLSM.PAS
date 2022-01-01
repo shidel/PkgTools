@@ -251,7 +251,7 @@ begin
     SizeOfObject := SizeOf(TPackageList);
 end;
 
-function TPackageList.Getinstalled : integer;
+function TPackageList.GetInstalled : integer;
 begin
     GetDirList(TailDelim(PackageLSMPath) + '*' + FileExtLSM, faAnyFile);
     GetInstalled := Count;

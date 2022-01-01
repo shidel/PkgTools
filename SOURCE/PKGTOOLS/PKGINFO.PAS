@@ -38,6 +38,8 @@ const
     ReportUsage : boolean = false;
     ReportEXEs : boolean = false;
     WildSearch : String = '';
+    WhatSearch : String = '';
+    LSTDir	   : String = '';
     ListFiles : integer = 0; { 0 = don't; 1 = invisible for Missing & Usage;
                                2 = EXE, COM & BAT; 3 = Everything }
 
@@ -101,6 +103,38 @@ const
         db 13,10
         db 'https://patreon.com/shidel',0
         db 0
+    end;
+
+    function SearchFile(FileName : String) : boolean;
+    var
+    	F : TDiskFile;
+    	S : String;
+    begin
+    	SearchFile := False;
+    	F.Create(nil);
+    	F.Assign(FileName);
+    	F.Reset;
+    	while (not F.EOF) and (F.Result = 0) do begin
+    		F.ReadLn(S, Sizeof(S) - 2);
+    		S := UCase(S);
+			if MatchWildCard(WhatSearch, S) then begin
+				SearchFile := True;
+				Break;
+			end;
+    	end;
+    	F.Close;
+    	F.Destroy;
+    end;
+
+    function SkipItem(Item : PDirItem) : boolean;
+    begin
+    	SkipItem := True;
+    	if (PkgWildCard <> '*') and
+		(MatchWildCard(PkgWildCard, BaseNameOf(Item^.Name)) = false) then exit;
+		if LSTDir <> '' then begin
+			if not SearchFile(LSTDir + BaseNameOf(Item^.Name) + '.LST') then exit;
+		end;
+        SkipItem := False;
     end;
 
     function SearchMetaData(LSM : PPackageLSM) : boolean;
@@ -243,8 +277,7 @@ const
         TestBreak;
         DisplayFile := 0;
         Item:=PDirItem(AObject);
-        if (PkgWildCard <> '*') and
-            (MatchWildCard(PkgWildCard, BaseNameOf(Item^.Name)) = false) then exit;
+        if SkipItem(Item) then exit;
         Inc(PkgShown);
         if ListFiles = 1 then begin
             Write(RSpace(BaseNameOf(Item^.Name),9));
@@ -263,8 +296,7 @@ const
         TestBreak;
         DisplayPkgTitle := 0;
         Item:=PDirItem(AObject);
-        if (PkgWildCard <> '*') and
-            (MatchWildCard(PkgWildCard, BaseNameOf(Item^.Name)) = false) then exit;
+        if SkipItem(Item) then exit;
         LSM := PPackageLSM(NewPackageLSM(nil));
         Err := LSM^.ReadMetaData(BaseNameOf(Item^.Name));
         if SearchMetaData(LSM) or (Err <> 0) then begin
@@ -350,8 +382,7 @@ const
           at this time). Also, OPT is Uppercased in the command line parser
           before it sets the PkgWildCard. So, All Checking is using Uppercase
           letters.}
-        if (PkgWildCard <> '*') and
-            (MatchWildCard(PkgWildCard, BaseNameOf(Item^.Name)) = false) then exit;
+        if SkipItem(Item) then exit;
         LSM := PPackageLSM(NewPackageLSM(nil));
         Err := LSM^.ReadMetaData(BaseNameOf(Item^.Name));
         if SearchMetaData(LSM) or (Err <> 0) then begin
@@ -493,6 +524,16 @@ const
             if ListFiles < 3 then ListFiles := 3;
         end else if Option = 'S' then begin
             WildSearch := ParamStr(NextParam);
+            Inc(NextParam);
+        end else if Option = 'W' then begin
+            LSTDir := GetEnv('DOSDIR');
+            if LSTDir <> '' then begin
+            	LSTDir := TailDelim(TailDelim(LSTDir) + 'PACKAGES');
+				WhatSearch := ParamStr(NextParam);
+				if Pos('*',WhatSearch) < 1 then
+					WhatSearch := FileExpand(WhatSearch) + '*';
+				WhatSearch := UCase(WhatSearch);
+			end;
             Inc(NextParam);
          end else
             Options := False;

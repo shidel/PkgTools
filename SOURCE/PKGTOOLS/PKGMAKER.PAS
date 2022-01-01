@@ -221,6 +221,7 @@ program Package_Maker;
 
     procedure UserTerminate; far;
     begin
+    	if OptZipIt then exit;
         if InitScan then begin
             if Assigned(DataFile) and FileExists(DataFile^.Name) then begin
                 DataFile^.Close;
@@ -239,7 +240,7 @@ program Package_Maker;
             end;
             if Assigned(LSTFile) then begin
                 LSTFile^.Close;
-                if not LSTAppend then begin
+                if not (LSTAppend) then begin
                     LSTFile^.Erase;
                     WriteLn('');
                     Write(NLSstr('FILE.DEL', LSTFile^.Name));
@@ -287,6 +288,7 @@ program Package_Maker;
     var
         F : File;
     begin
+    	if OptZipIt then exit;
         if Not Assigned(DataFile) then exit;
         DataFile^.Erase;
         if ShowMsg then begin
@@ -1024,6 +1026,7 @@ program Package_Maker;
             ReMapFile := 'FAILED';
     end;
 
+{$IFDEF ZIPIT}
     {$I-}
     procedure ZipPackage;
     var
@@ -1101,19 +1104,22 @@ program Package_Maker;
         Ret := IOResult;
         GetDir(0, ZDir);
         if Ret = 0 then begin
-            ChDir(NoTailDelim(ReMapFile(TailDelim(GetEnv('DOSDIR')))));
+            ChDir(TailDelim(TMPDir) + PkgWildCard + '.PKG');
             Ret := IOResult;
             { MemStat; }
             if Ret <> 0 then begin
-                WriteLn(ErrorMsg(Ret, ReMapFile(TailDelim(GetEnv('DOSDIR')))));
+                WriteLn(ErrorMsg(Ret, TailDelim(TMPDir) + PkgWildCard + '.PKG'));
             end else begin
                 if Copy(CDir, 1, 2) = Copy(ZDir, 1, 2) then
                     S := TailDelim(CDir)
                 else
                     S := Copy(CDir, 1, 2);
                 DOSError := 0;
-                S := ZipOpts + ' ' + S + PkgWildCard + '.zip *.*';
+                S := ' ' + ZipOpts + ' ' + S + PkgWildCard + '.zip . -i *.*';
+                { WriteLn('');
+                WriteLn(ZIPexe + ' ' + S); }
                 SwapIntVecs;
+                {Exec('C:\D.EXE', '');}
                 Exec(ZIPexe, S);
                 Ret := DOSError;
                 SwapIntVecs;
@@ -1135,6 +1141,17 @@ program Package_Maker;
         end;
     end;
     {$I+}
+{$ELSE}
+    procedure ZipPackage;
+    var
+    	S : String;
+	begin
+		S := NLS('NO.ZIP');
+		if S = '' then S := 'Package zipping not available for compatibilty reasons, use pkgzipit.bat';
+		WriteLn(S);
+	end;
+{$ENDIF}
+
 
     procedure PerformScan;
     var
