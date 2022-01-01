@@ -1,0 +1,18 @@
+Begin3
+Title:          Package Tools
+Version:        $VERSION$
+Entered-date:   $DATE$
+Description:    general maintenance utilities for FreeDOS packages
+Summary:        Utilities to create and display information about installed packages for FreeDOS. Eventually, utilities to relocate, delete and perform other general package maintenance on packages may be added.
+Changes:
+Keywords:       dos 16 bit, asm, pascal
+Author:         Jerome Shidel <jerome _AT_ shidel.net>
+Maintained-by:  Jerome Shidel <jerome _AT_ shidel.net>
+Primary-site:   https://fd.lod.bz/repos/current/pkg-html/pkgtools.html
+Alternate-site: https://gitlab.com/FDOS/util/pkgtools
+Original-site:  https://github.com/shidel/PkgTools
+Wiki-site:
+Mirror-site:
+Platforms:      DOS
+Copying-policy: Mozilla Public License Version 2.0
+End
