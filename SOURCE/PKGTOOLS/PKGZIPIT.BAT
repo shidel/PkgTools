@@ -6,12 +6,12 @@ goto End
 
 :NoExistingZIP
 if exist %DOSDIR%\PACKAGES\%1.LST goto HaveLSTFile
-echo Could not locate Pacakge Listing File.
+echo Could not locate package listing File.
 goto End
 
 :HaveLSTFile
 if exist %DOSDIR%\APPINFO\%1.LSM goto HaveLSMFile
-echo Could not locate Pacakge Metadata File.
+echo Could not locate package metadata File.
 goto End
 
 :HaveLSMFile
